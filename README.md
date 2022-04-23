@@ -6,7 +6,7 @@
 - CUDA Toolkit >= 10.1
 - gcc 7.5.0
 - GNU Make >= 4.1
-- nauty.h and nauty.a (provided in the source)
+- Nauty canonical relabeling tool (nauty.h and nauty.a, provided in the source)
 
 ## Input
 *DuMato* supports undirected graphs and uses the following input format:
