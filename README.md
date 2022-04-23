@@ -34,14 +34,14 @@ Both applications (clique counting and motif counting) require the following arg
 
 Where:
 > -app_name: motif_counting or clique_counting. <br />
-> -graph_file: url of graph dataset.
-> -k: size of enumerated subgraphs.
-> -number_of_threads: number of threads to instantiate on GPU.
-> -number_of_SMS: number of streaming multiprocessor (SM) in the target GPU. Needed for the runtime report.
-> -report_interval: the frequency (in millisecons) the runtime report should appear in the screen during execution.
+> -graph_file: url of graph dataset.<br />
+> -k: size of enumerated subgraphs.<br />
+> -number_of_threads: number of threads to instantiate on GPU.<br />
+> -number_of_SMS: number of streaming multiprocessor (SM) in the target GPU. Needed for the runtime report.<br />
+> -report_interval: the frequency (in millisecons) the runtime report should appear in the screen during execution.<br />
 
 For example, motif counting can be executed using the following command line:
 
->./motif_counting data/dblp.edgelist 5 409600 256 80 90 1000
+> ./motif_counting data/dblp.edgelist 5 409600 256 80 90 1000
 
 The command line above would run motif counting to search for motifs with 5 vertices using 409600 threads, blocks with 256 threads, a GPU with 80 SMs, a threshold of 10\% (up to 90\% of threads are allowed to be idle) and a runtime report being exhibit every second (1000 ms).
