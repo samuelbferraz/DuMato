@@ -14,8 +14,9 @@ int main(int argc, const char** argv)
     int numberOfSMs = atoi(argv[5]);
     int globalThreshold = atoi(argv[6]);
     int reportInterval = atoi(argv[7]);
+    bool canonical_relabeling = (atoi(argv[8]) == 1 ? true : false);
 
-    Manager* manager = new Manager(graphFile, k, numberOfActiveThreads, blockSize, motif_counting, false, 1, numberOfSMs, reportInterval);
+    Manager* manager = new Manager(graphFile, k, numberOfActiveThreads, blockSize, motif_counting, false, 1, numberOfSMs, reportInterval, canonical_relabeling);
 
     manager->startTimer();
 

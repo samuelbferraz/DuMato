@@ -10,10 +10,11 @@ class QuickMapping {
         long unsigned int *quickToCgLocal;
         long unsigned int numberOfCgs;
         long unsigned int *cgLocalToGlobal;
+        bool canonical_relabeling;
 
         FILE* fp;
 
-        QuickMapping(int k);
+        QuickMapping(int k, bool canonical_relabeling);
         ~QuickMapping();
 };
 

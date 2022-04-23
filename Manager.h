@@ -114,7 +114,7 @@ class Manager {
         /* Methods */
         /***********/
 
-        Manager(const char* graphFile, int k, int numberOfActiveThreads, int blockSize, void (*kernel)(Device*), bool getcanon, int numberOfWorkerThreads, int numberOfSMs, int reportInterval);
+        Manager(const char* graphFile, int k, int numberOfActiveThreads, int blockSize, void (*kernel)(Device*), bool getcanon, int numberOfWorkerThreads, int numberOfSMs, int reportInterval, bool canonical_relabeling);
         ~Manager();
 
         void initializeHostDataStructures();

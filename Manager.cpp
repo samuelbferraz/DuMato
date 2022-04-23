@@ -12,9 +12,9 @@
 #define MAXN 10
 #include "nauty.h"
 
-Manager::Manager(const char* graphFile, int k, int numberOfActiveThreads, int blockSize, void (*kernel)(Device*), bool getcanon, int numberOfWorkerThreads, int numberOfSMs, int reportInterval) {
+Manager::Manager(const char* graphFile, int k, int numberOfActiveThreads, int blockSize, void (*kernel)(Device*), bool getcanon, int numberOfWorkerThreads, int numberOfSMs, int reportInterval, bool canonical_relabeling) {
     this->h_k = k;
-    this->quickMapping = new QuickMapping(k);
+    this->quickMapping = new QuickMapping(k, canonical_relabeling);
     this->mainGraph = new Graph(graphFile);
     this->h_numberOfActiveThreads = numberOfActiveThreads;
     this->blockSize = blockSize;
