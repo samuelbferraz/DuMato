@@ -10,8 +10,8 @@
 ## Input
 *DuMato* supports undirected graphs and uses the following input format:
 
-src_vertex dst_vertex
-src_vertex dst_vertex
+src_vertex dst_vertex <br />
+src_vertex dst_vertex <br />
 
 *DuMato* expects vertex ids of a graph G to be in the range [0 .. V(G)-1].
 
@@ -33,7 +33,7 @@ Both applications (clique counting and motif counting) require the following arg
 >./app_name graph_file k number_of_threads block_size number_of_SMs report_interval
 
 Where:
-> -app_name: motif_counting or clique_counting.
+> -app_name: motif_counting or clique_counting. <br />
 > -graph_file: url of graph dataset.
 > -k: size of enumerated subgraphs.
 > -number_of_threads: number of threads to instantiate on GPU.
