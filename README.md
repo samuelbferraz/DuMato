@@ -27,6 +27,15 @@ The flag *compute_capability* is the compute capability of your NVIDIA GPU. For 
 
 >make sm=70
 
+## Datasets
+
+All datasets used in the experiments are available as a zip file in the *data* folder. Please unzip the datasets prior to the execution.
+
+
+## Dictionaries
+
+All dictionaries (needed for canonical relabeling on GPU) are provided as a zip in the *dictionaries* folder. Please unzip the the dictionaries prior to the execution.
+
 ## Executing applications
 Both applications (clique counting and motif counting) require the following arguments for execution:
 
