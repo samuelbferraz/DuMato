@@ -29,17 +29,16 @@ The flag *compute_capability* is the compute capability of your NVIDIA GPU. For 
 
 ## Datasets
 
-All datasets used in the experiments are available as a zip file in the *data* folder. Please unzip the datasets prior to the execution.
-
+Datasets are available as a zip file in the *data* directory. Please unzip the files prior to the execution. LiveJournal dataset is not available due to space constraints in the repository. Please download, unzip and place the files into the *data* folder prior to the execution.
 
 ## Dictionaries
 
-All dictionaries (needed for canonical relabeling on GPU) are provided as a zip in the *dictionaries* folder. Please unzip the the dictionaries prior to the execution.
+Dictionaries (needed for canonical relabeling on GPU) are available as a zip file in the *dictionaries* directory. Please unzip the files prior to the execution. Bigger dictionaries are not available due to space constraints in the repository. Please download, unzip and place the files into the *dictionaries* folder prior to the execution.
 
 ## Executing applications
 Both applications (clique counting and motif counting) require the following arguments for execution:
 
->./app_name graph_file k number_of_threads block_size number_of_SMs report_interval
+>./app_name graph_file k number_of_threads block_size number_of_SMs report_interval canonical_relabeling
 
 Where:
 > -app_name: motif_counting or clique_counting. <br />
@@ -48,9 +47,15 @@ Where:
 > -number_of_threads: number of threads to instantiate on GPU.<br />
 > -number_of_SMS: number of streaming multiprocessor (SM) in the target GPU. Needed for the runtime report.<br />
 > -report_interval: the frequency (in millisecons) the runtime report should appear in the screen during execution.<br />
+> -canonical_relabeling: a flag (0 for false and 1 for true) to indicate whether your application requires canonical relabeling on GPU.<br />
 
-For example, motif counting can be executed using the following command line:
 
-> ./motif_counting data/dblp.edgelist 5 409600 256 80 90 1000
+For example, motif counting can be executed using the following command line: <br />
 
-The command line above would run motif counting to search for motifs with 5 vertices using 409600 threads, blocks with 256 threads, a GPU with 80 SMs, a threshold of 10\% (up to 90\% of threads are allowed to be idle) and a runtime report being exhibit every second (1000 ms).
+> ./motif_counting data/dblp.edgelist 4 409600 256 80 90 1000 1
+
+The command line above would run motif counting to search for motifs with 5 vertices using 409600 threads, blocks with 256 threads, a GPU with 80 SMs, a threshold of 10\% (up to 90\% of threads are allowed to be idle), a runtime report being exhibit every second (1000 ms) and canonical relabeling required on GPU.
+
+Clique counting can be executed using the following command line: <br />
+
+> ./clique_counting data/dblp.edgelist 4 409600 256 80 90 1000 0
