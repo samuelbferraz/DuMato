@@ -33,12 +33,12 @@ Both applications (clique counting and motif counting) require the following arg
 >./app_name graph_file k number_of_threads block_size number_of_SMs report_interval
 
 Where:
->app_name: motif_counting or clique_counting.
->graph_file: url of graph dataset.
->k: size of enumerated subgraphs.
->number_of_threads: number of threads to instantiate on GPU.
->number_of_SMS: number of streaming multiprocessor (SM) in the target GPU. Needed for the runtime report.
->report_interval: the frequency (in millisecons) the runtime report should appear in the screen during execution.
+> -app_name: motif_counting or clique_counting.
+> -graph_file: url of graph dataset.
+> -k: size of enumerated subgraphs.
+> -number_of_threads: number of threads to instantiate on GPU.
+> -number_of_SMS: number of streaming multiprocessor (SM) in the target GPU. Needed for the runtime report.
+> -report_interval: the frequency (in millisecons) the runtime report should appear in the screen during execution.
 
 For example, motif counting can be executed using the following command line:
 
