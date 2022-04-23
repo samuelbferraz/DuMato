@@ -34,7 +34,7 @@ it is necessary to check they are correct.
 #define HAVE_TLS 1   /* have storage attribute for thread-local */
 #define TLS_ATTR _Thread_local  /* if so, what it is.  if not, empty */
 
-#define USE_ANSICONTROLS 0 
+#define USE_ANSICONTROLS 0
                           /* whether --enable-ansicontrols is used */
 
 #define _FILE_OFFSET_BITS 0
@@ -88,263 +88,6 @@ it is necessary to check they are correct.
 #define SYS_UNIX
 #endif
 
-/*****************************************************************************
-*                                                                            *
-*    AUTHOR: Brendan D. McKay                                                *
-*            Research School of Computer Science                             *
-*            Australian National University                                  *
-*            Canberra, ACT 2601, Australia                                   *
-*            phone:  +61 2 6125 3845                                         *
-*            email:  Brendan.McKay@anu.edu.au                                *
-*                                                                            *
-*  This software is subject to copyright as detailed in the file COPYRIGHT.  *
-*                                                                            *
-*   Reference manual:                                                        *
-*     B. D. McKay and A. Piperno, nauty User's Guide (Version 2.5),          *
-*         http://pallini.di.uniroma1.it                                      *
-*         http://cs.anu.edu.au/~bdm/nauty/                                   *
-*                                                                            *
-*   CHANGE HISTORY                                                           *
-*       10-Nov-87 : final changes for version 1.2                            *
-*        5-Dec-87 : renamed to version 1.3 (no changes to this file)         *
-*       28-Sep-88 : added PC Turbo C support, making version 1.4             *
-*       23-Mar-89 : changes for version 1.5 :                                *
-*                   - reworked M==1 code                                     *
-*                   - defined NAUTYVERSION string                            *
-*                   - made NAUTYH_READ to allow this file to be read twice   *
-*                   - added optional ANSI function prototypes                *
-*                   - added validity check for WORDSIZE                      *
-*                   - added new fields to optionblk structure                *
-*                   - updated DEFAULTOPTIONS to add invariants fields        *
-*                   - added (set*) cast to definition of GRAPHROW            *
-*                   - added definition of ALLOCS and FREES                   *
-*       25-Mar-89 : - added declaration of new function doref()              *
-*                   - added UNION macro                                      *
-*       29-Mar-89 : - reduced the default MAXN for small machines            *
-*                   - removed OUTOFSPACE (no longer used)                    *
-*                   - added SETDIFF and XOR macros                           *
-*        2-Apr-89 : - extended statsblk structure                            *
-*        4-Apr-89 : - added IS_* macros                                      *
-*                   - added ERRFILE definition                               *
-*                   - replaced statsblk.outofspace by statsblk.errstatus     *
-*        5-Apr-89 : - deleted definition of np2vector (no longer used)       *
-*                   - introduced EMPTYSET macro                              *
-*       12-Apr-89 : - eliminated MARK, UNMARK and ISMARKED (no longer used)  *
-*       18-Apr-89 : - added MTOOBIG and CANONGNIL                            *
-*       12-May-89 : - made ISELEM1 and ISELEMENT return 0 or 1               *
-*        2-Mar-90 : - added EXTPROC macro and used it                        *
-*       12-Mar-90 : - added SYS_CRAY, with help from N. Sloane and A. Grosky *
-*                   - added dummy groupopts field to optionblk               *
-*                   - select some ANSI things if __STDC__ exists             *
-*       20-Mar-90 : - changed default MAXN for Macintosh versions            *
-*                   - created SYS_MACTHINK for Macintosh THINK compiler      *
-*       27-Mar-90 : - split SYS_MSDOS into SYS_PCMS4 and SYS_PCMS5           *
-*       13-Oct-90 : changes for version 1.6:                                 *
-*                   - fix definition of setword for WORDSIZE==64             *
-*       14-Oct-90 : - added SYS_APOLLO version to avoid compiler bug         *
-*       15-Oct-90 : - improve detection of ANSI conformance                  *
-*       17-Oct-90 : - changed temp name in EMPTYSET to avoid A/UX bug        *
-*       16-Apr-91 : changes for version 1.7:                                 *
-*                   - made version SYS_PCTURBO use free(), not cfree()       *
-*        2-Sep-91 : - noted that SYS_PCMS5 also works for Quick C            *
-*                   - moved MULTIPLY to here from nauty.c                    *
-*       12-Jun-92 : - changed the top part of this comment                   *
-*       27-Aug-92 : - added version SYS_IBMC, thanks to Ivo Duentsch         *
-*        5-Jun-93 : - renamed to version 1.7+, only change in naututil.h     *
-*       29-Jul-93 : changes for version 1.8:                                 *
-*                   - fixed error in default 64-bit version of FIRSTBIT      *
-*                     (not used in any version before ALPHA)                 *
-*                   - installed ALPHA version (thanks to Gordon Royle)       *
-*                   - defined ALLOCS,FREES for SYS_IBMC                      *
-*        3-Sep-93 : - make calloc void* in ALPHA version                     *
-*       17-Sep-93 : - renamed to version 1.9,                                *
-*                        changed only dreadnaut.c and nautinv.c              *
-*       24-Feb-94 : changes for version 1.10:                                *
-*                   - added version SYS_AMIGAAZT, thanks to Carsten Saager   *
-*                     (making 1.9+)                                          *
-*       19-Apr-95 : - added prototype wrapper for C++,                       *
-*                     thanks to Daniel Huson                                 *
-*        5-Mar-96 : - added SYS_ALPHA32 version (32-bit setwords on Alpha)   *
-*       13-Jul-96 : changes for version 2.0:                                 *
-*                   - added dynamic allocation                               *
-*                   - ERRFILE must be defined                                *
-*                   - added FLIPELEM1 and FLIPELEMENT macros                 *
-*       13-Aug-96 : - added SWCHUNK? macros                                  *
-*                   - added TAKEBIT macro                                    *
-*       28-Nov-96 : - include sys/types.h if not ANSI (tentative!)           *
-*       24-Jan-97 : - and stdlib.h if ANSI                                   *
-*                   - removed use of cfree() from UNIX variants              *
-*       25-Jan-97 : - changed options.getcanon from boolean to int           *
-*                     Backwards compatibility is ok, as boolean and int      *
-*                     are the same.  Now getcanon=2 means to get the label   *
-*                     and not care about the group.  Sometimes faster.       *
-*        6-Feb-97 : - Put in #undef for FALSE and TRUE to cope with          *
-*                     compilers that illegally predefine them.               *
-*                   - declared nauty_null and nautil_null                    *
-*        2-Jul-98 : - declared ALLBITS                                       *
-*       21-Oct-98 : - allow WORDSIZE==64 using unsigned long long            *
-*                   - added BIGNAUTY option for really big graphs            *
-*       11-Dec-99 : - made bit, leftbit and bytecount static in each file    *
-*        9-Jan-00 : - declared nauty_check() and nautil_check()              *
-*       12-Feb-00 : - Used #error for compile-time checks                    *
-*                   - Added DYNREALLOC                                       *
-*        4-Mar-00 : - declared ALLMASK(n)                                    *
-*       27-May-00 : - declared CONDYNFREE                                    *
-*       28-May-00 : - declared nautil_freedyn()                              *
-*       16-Aug-00 : - added OLDNAUTY and changed canonical labelling         *
-*       16-Nov-00 : - function prototypes are now default and unavoidable    *
-*                   - removed UPROC, now assume all compilers know void      *
-*                   - removed nvector, now just int (as it always was)       *
-*                   - added extra parameter to targetcell()                  *
-*                   - removed old versions which were only to skip around    *
-*                     bugs that should have been long fixed:                 *
-*                     SYS_APOLLO and SYS_VAXBSD.                             *
-*                   - DEFAULTOPIONS now specifies no output                  *
-*                   - Removed obsolete SYS_MACLSC version                    *
-*       21-Apr-01 : - Added code to satisfy compilation into Magma.  This    *
-*                       is activated by defining NAUTY_IN_MAGMA above.       *
-*                   - The *_null routines no longer exist                    *
-*                   - Default maxinvarlevel is now 1.  (This has no effect   *
-*                        unless an invariant is specified.)                  *
-*                   - Now labelorg has a concrete declaration in nautil.c    *
-*                        and EXTDEFS is not needed                           *
-*        5-May-01 : - NILFUNCTION, NILSET, NILGRAPH now obsolete.  Use NULL. *
-*       11-Sep-01 : - setword is unsigned int in the event that UINT_MAX     *
-*                     is defined and indicates it is big enough              *
-*       17-Oct-01 : - major rewrite for 2.1.  SYS_* variables gone!          *
-*                     Some modernity assumed, eg size_t                      *
-*        8-Aug-02 : - removed MAKEEMPTY  (use EMPTYSET instead)              *
-*                   - deleted OLDNAUTY everywhere                            *
-*       27-Aug-02 : - converted to use autoconf.  Now the original of this   *
-*                     file is nauty-h.in. Run configure to make nauty.h.     *
-*       20-Dec-02 : - increased INFINITY                                     *
-*                     some reorganization to please Magma                    *
-*                   - declared nauty_freedyn()                               *
-*       17-Nov-03 : - renamed INFINITY to NAUTY_INFINITY                     *
-*       29-May-04 : - added definition of SETWORD_FORMAT                     *
-*       14-Sep-04 : - extended prototypes even to recursive functions        *
-*       16-Oct-04 : - added DEFAULTOPTIONS_GRAPH                             *
-*       24-Oct-04 : Starting 2.3                                             *
-*                   - remove register declarations as modern compilers       *
-*                     tend to find them a nuisance                           *
-*                   - Don't define the obsolete symbol INFINITY if it is     *
-*                     defined already                                        *
-*       17-Nov-04 : - make 6 counters in statsblk unsigned long              *
-*       17-Jan-04 : - add init() and cleanup() to dispatchvec                *
-*       12-Nov-05 : - Changed NAUTY_INFINITY to 2^30+2 in BIGNAUTY case      *
-*       22-Nov-06 : Starting 2.4                                             *
-*                   - removed usertcellproc from options                     *
-*                     changed bestcell to targetcell in dispatch vector      *
-*                     declare targetcell and maketargetcell                  *
-*       29-Nov-06 : - add extraoptions to optionblk                          *
-*                   - add declarations of extra_autom and extra_level        *
-*       10-Dec-06 : - BIGNAUTY is gone!  Now permutation=shortish=int.       *
-*                     NAUTY_INFINITY only depends on whether sizeof(int)=2.  *
-*       27-Jun-08 : - define nauty_counter and LONG_LONG_COUNTERS            *
-*       30-Jun-08 : - declare version 2.4                                    *
-*        8-Nov-09 : - final release of version 2.4;                          *
-*       10-Nov-10 : Starting 2.5                                             *
-*                   - declare shortish and permutation obsolete, now int     *
-*       14-Nov-10 : - SETWORDSNEEDED(n)                                      *
-*       23-May-10 : - declare densenauty()                                   *
-*       29-Jun-10 : - add PRINT_COUNTER(f,x)                                 *
-*                   - add DEFAULTOPTIONS_DIGRAPH()                           *
-*       27-Mar-11 : - declare writegroupsize()                               *
-*       14-Jan-12 : - add HAVE_TLS and TLS_ATTR                              *
-*       21-Feb-12 : - add ENABLE_ANSI                                        *
-*       18-Mar-12 : - add COUNTER_FMT                                        *
-*       18-Aug-12 : - add ADDONEARC, ADDONEEDGE, EMPTYGRAPH                  *
-*       29-Aug-12 : - add CLZ macros and FIRSTBITNZ                          *
-*       19-Oct-12 : - add DEFAULT_WORDSIZE                                   *
-*        3-Jan-12 : Released 2.5rc1                                          *
-*       18-Jan-12 : Froze 2.5                                                *
-*       18-Jan-12 : - add NAUABORTED and NAUKILLED                           *
-*                   - add nauty_kill_request                                 *
-*                   - add usercanonproc                                      *
-*        1-Oct-15 : - add COUNTER_FMT_RAW                                    *
-*       10-Jan-16 : - defined POPCOUNTMAC, optionally use popcnt             *
-*                   - remove SYS_CRAY, let's hope it is long obsolete        *
-*                   - add Intel popcount intrinsics for icc                  *
-*       12-Jan-16 : - DYNFREE and CONDYNFREE now set the pointer to NULL     *
-*       16-Jan-16 : - Change NAUTY_INFINITY to 2 billion + 2                 *
-*       12-Mar-16 : - Add const to alloc_error()                             *
-*                 : Froze 2.6                                                *
-*       29-Aug-16 : - Add SWHIBIT, REMOVEHIBIT and ATMOSTONEBIT              * 
-*       10-Mar-18 : - Add SETWORD_DEC_FORMAT for decimal output              *
-*                   - Fix 64-bit SETWORD_FORMAT to use 0 padding.            *
-*       28-Feb-19 : - Use intrinsics for WORDSIZE=16                         *
-*                   - Macro versions of FIRSTBIT and FIRSTBITNZ are always   *
-*                     available as FIRSTBITMAC and FIRSTBITNZMAC             *
-*        1-Mar-19 : - Add AVOID* tests for non-POSIX header files            *
-*       31-Aug-19 : - Revise type size determinations to be more robust if   *
-*                      configuration wasn't done.                            *
-*                   - HAVE_HWLZCNT and HAV_HWPOPCNT can be defined at        *
-*                      compile time                                          *
-*                   - FIRSTBITNZ, FIRSTBIT and POPCOUNT can be defined at    *
-*                      compile time                                          *
-*       11-Oct-19 : - Move labelorg and nauty_kill_request into the          *
-*                      "C" block for C++ compatibiliy                        *
-*       23-Mar-20 : - Don't define INFINITY even if it is absent from math.h *
-* ++++++ This file is automatically generated, don't edit it by hand! ++++++
-*                                                                            *
-*****************************************************************************/
-
-/*****************************************************************************
-*                                                                            *
-*   16-bit, 32-bit and 64-bit versions can be selected by defining WORDSIZE. *
-*   The largest graph that can be handled has MAXN vertices.                 *
-*   Both WORDSIZE and MAXN can be defined on the command line.               *
-*   WORDSIZE must be 16, 32 or 64; MAXN must be <= NAUTY_INFINITY-2;         *
-*                                                                            *
-*   With a very slight loss of efficiency (depending on platform), nauty     *
-*   can be compiled to dynamically allocate arrays.  Predefine MAXN=0 to     *
-*   achieve this effect, which is default behaviour from version 2.0.        *
-*   In that case, graphs of size up to NAUTY_INFINITY-2 can be handled       *
-*   if the memory is available.                                              *
-*                                                                            *
-*   If only very small graphs need to be processed, use MAXN<=WORDSIZE       *
-*   since this causes substantial code optimizations.                        *
-*                                                                            *
-*   Conventions and Assumptions:                                             *
-*                                                                            *
-*    A 'setword' is the chunk of memory that is occupied by one part of      *
-*    a set.  This is assumed to be >= WORDSIZE bits in size.                 *
-*                                                                            *
-*    The rightmost (loworder) WORDSIZE bits of setwords are numbered         *
-*    0..WORDSIZE-1, left to right.  It is necessary that the 2^WORDSIZE      *
-*    setwords with the other bits zero are totally ordered under <,=,>.      *
-*    This needs care on a 1's-complement machine.                            *
-*                                                                            *
-*    The int variables m and n have consistent meanings throughout.          *
-*    Graphs have n vertices always, and sets have m setwords always.         *
-*                                                                            *
-*    A 'set' consists of m contiguous setwords, whose bits are numbered      *
-*    0,1,2,... from left (high-order) to right (low-order), using only       *
-*    the rightmost WORDSIZE bits of each setword.  It is used to             *
-*    represent a subset of {0,1,...,n-1} in the usual way - bit number x     *
-*    is 1 iff x is in the subset.  Bits numbered n or greater, and           *
-*    unnumbered bits, are assumed permanently zero.                          *
-*                                                                            *
-*    A 'graph' consists of n contiguous sets.  The i-th set represents       *
-*    the vertices adjacent to vertex i, for i = 0,1,...,n-1.                 *
-*                                                                            *
-*    A 'permutation' is an array of n ints repesenting a permutation of      *
-*    the set {0,1,...,n-1}.  The value of the i-th entry is the number to    *
-*    which i is mapped.                                                      *
-*                                                                            *
-*    If g is a graph and p is a permutation, then g^p is the graph in        *
-*    which vertex i is adjacent to vertex j iff vertex p[i] is adjacent      *
-*    to vertex p[j] in g.                                                    *
-*                                                                            *
-*    A partition nest is represented by a pair (lab,ptn), where lab and ptn  *
-*    are int arrays.  The "partition at level x" is the partition whose      *
-*    cells are {lab[i],lab[i+1],...,lab[j]}, where [i,j] is a maximal        *
-*    subinterval of [0,n-1] such that ptn[k] > x for i <= k < j and          *
-*    ptn[j] <= x.  The partition at level 0 is given to nauty by the user.   *
-*    This is  refined for the root of the tree, which has level 1.           *
-*                                                                            *
-*****************************************************************************/
-
 #ifndef NAUTY_IN_MAGMA
 #if HAVE_SYSTYPES_H && !defined(AVOID_SYS_TYPES_H)
 #include <sys/types.h>
@@ -372,7 +115,7 @@ it is necessary to check they are correct.
 #endif
 
 /* Now we determine some sizes, relying on limits.h and
-  stdint.h first in case configuration was not done. 
+  stdint.h first in case configuration was not done.
   None of these tests are perfect, but sizeof() is not
   allowed in preprocessor tests.  The program nautest.c
   will check these. */
@@ -397,7 +140,7 @@ it is necessary to check they are correct.
 #define SIZEOF_LONG 8
 #endif
 
-#if defined(LLONG_MAX) 
+#if defined(LLONG_MAX)
 #define SIZEOF_LONG_LONG 8
 #else
 #define SIZEOF_LONG 8   /* 0 if nonexistent */
@@ -429,7 +172,7 @@ it is necessary to check they are correct.
 
    If WORDSIZE is not defined, but DEFAULT_WORDSIZE > 0, then set
       WORDSIZE to the same value as DEFAULT_WORDSIZE.
-   If WORDSIZE is so far undefined, use 32 unless longs have more 
+   If WORDSIZE is so far undefined, use 32 unless longs have more
       than 32 bits, in which case use 64.
    Define setword thus:
       WORDSIZE==16 : unsigned short
@@ -640,9 +383,9 @@ typedef unsigned long nauty_counter;
 #define MSK0856 0xFF00000000000000ULL
 #define MSK1632 0x0000FFFF00000000ULL
 #define MSK0840     0xFF0000000000ULL
-#define MSK1616         0xFFFF0000ULL 
-#define MSK0824         0xFF000000ULL 
-#define MSK0808             0xFF00ULL 
+#define MSK1616         0xFFFF0000ULL
+#define MSK0824         0xFF000000ULL
+#define MSK0808             0xFF00ULL
 #define MSK63C  0x7FFFFFFFFFFFFFFFULL
 #define MSK31C          0x7FFFFFFFULL
 #define MSK15C              0x7FFFULL
@@ -658,9 +401,9 @@ typedef unsigned long nauty_counter;
 #define MSK0856 0xFF00000000000000UL
 #define MSK1632 0x0000FFFF00000000UL
 #define MSK0840     0xFF0000000000UL
-#define MSK1616         0xFFFF0000UL 
-#define MSK0824         0xFF000000UL 
-#define MSK0808             0xFF00UL 
+#define MSK1616         0xFFFF0000UL
+#define MSK0824         0xFF000000UL
+#define MSK0808             0xFF00UL
 #define MSK63C  0x7FFFFFFFFFFFFFFFUL
 #define MSK31C          0x7FFFFFFFUL
 #define MSK15C              0x7FFFUL
@@ -676,9 +419,9 @@ typedef unsigned long nauty_counter;
 #define MSK0856 0xFF00000000000000U
 #define MSK1632 0x0000FFFF00000000U
 #define MSK0840     0xFF0000000000U
-#define MSK1616         0xFFFF0000U 
+#define MSK1616         0xFFFF0000U
 #define MSK0824         0xFF000000U
-#define MSK0808             0xFF00U 
+#define MSK0808             0xFF00U
 #define MSK63C  0x7FFFFFFFFFFFFFFFU
 #define MSK31C          0x7FFFFFFFU
 #define MSK15C              0x7FFFU
@@ -831,7 +574,7 @@ static int msc_bsr_64(setword x) \
    { unsigned long *p; \
      _BitScanReverse64(&p,x); return 63 - *p; }
 #define FIRSTBITNZ(x) (msc_bsr_64(x))
-#elif WORDSIZE==32 
+#elif WORDSIZE==32
 #pragma intrinsic(_BitScanReverse)
 static int msc_bsr_32(setword x) \
    { unsigned *p; \
@@ -895,7 +638,7 @@ static int msc_bsr_16(setword x) \
 #if WORDSIZE==64
 #pragma instrinsic(_mm_popcnt_u64)
 #define POPCOUNT(x) ((int)_mm_popcnt_u64(x))
-#elif WORDSIZE==32 
+#elif WORDSIZE==32
 #pragma instrinsic(_mm_popcnt_u32)
 #define POPCOUNT(x) _mm_popcnt_u32(x)
 #elif WORDSIZE==16
@@ -951,7 +694,7 @@ static int msc_bsr_16(setword x) \
 /* The following four types are obsolete, use int in new code. */
 typedef int shortish;
 typedef shortish permutation;
-typedef int nvector,np2vector; 
+typedef int nvector,np2vector;
 
 #if MAXN > NAUTY_INFINITY-2
  #error MAXN must be at most NAUTY_INFINITY-2
@@ -1116,10 +859,10 @@ extern void free(void*);
 
 /* ALLOCS(x,y) should return a pointer (any pointer type) to x*y units of new
    storage, not necessarily initialised.  A "unit" of storage is defined by
-   the sizeof operator.   x and y are integer values of type int or larger, 
+   the sizeof operator.   x and y are integer values of type int or larger,
    but x*y may well be too large for an int.  The macro should cast to the
-   correct type for the call.  On failure, ALLOCS(x,y) should return a NULL 
-   pointer.  FREES(p) should free storage previously allocated by ALLOCS, 
+   correct type for the call.  On failure, ALLOCS(x,y) should return a NULL
+   pointer.  FREES(p) should free storage previously allocated by ALLOCS,
    where p is the value that ALLOCS returned. */
 
 #ifdef NAUTY_IN_MAGMA
@@ -1128,7 +871,7 @@ extern void free(void*);
 #define FREES(p) mem_free(p)
 #else
 #define ALLOCS(x,y) malloc((size_t)(x)*(size_t)(y))
-#define REALLOCS(p,x) realloc(p,(size_t)(x)) 
+#define REALLOCS(p,x) realloc(p,(size_t)(x))
 #define FREES(p) free(p)
 #endif
 
@@ -1143,7 +886,7 @@ extern void free(void*);
    DYNALLOC2 test if there is enough space allocated, and if not free
    the existing space and allocate a bigger space.  The allocated space
    is not initialised.
-   
+
    In the case of DYNALLOC1, the space is allocated using
        ALLOCS(sz,sizeof(type)).
    In the case of DYNALLOC2, the space is allocated using
@@ -1180,7 +923,7 @@ extern void free(void*);
 #define ERRFILE stderr
 
 /* Don't use OLDEXTDEFS, it is only still here for Magma. */
-#ifdef OLDEXTDEFS   
+#ifdef OLDEXTDEFS
 #define EXTDEF_CLASS
 #ifdef EXTDEFS
 #define EXTDEF_TYPE 1
