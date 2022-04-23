@@ -6,6 +6,7 @@
 - CUDA Toolkit >= 10.1
 - gcc 7.5.0
 - GNU Make >= 4.1
+- nauty.h and nauty.a (provided in the source)
 
 ## Input
 *DuMato* supports undirected graphs and uses the following input format:
@@ -29,11 +30,11 @@ The flag *compute_capability* is the compute capability of your NVIDIA GPU. For 
 
 ## Datasets
 
-Datasets are available as a zip file in the *data* directory. Please unzip the files prior to the execution. LiveJournal dataset is not available due to space constraints in the repository. Please download, unzip and place the files into the *data* folder prior to the execution.
+Datasets are available as a zip file in the *data* directory. LiveJournal dataset is not available due to space constraints in the repository. Please download, unzip and place the files into the *data* folder prior to the execution.
 
 ## Dictionaries
 
-Dictionaries (needed for canonical relabeling on GPU) are available as a zip file in the *dictionaries* directory. Please unzip the files prior to the execution. Bigger dictionaries are not available due to space constraints in the repository. Please download, unzip and place the files into the *dictionaries* folder prior to the execution.
+Dictionaries (needed for canonical relabeling on GPU) are available as a zip file in the *dictionaries* directory. Bigger dictionaries are not available due to space constraints in the repository. Please download, unzip and place the files into the *dictionaries* folder prior to the execution.
 
 ## Executing applications
 Both applications (clique counting and motif counting) require the following arguments for execution:
