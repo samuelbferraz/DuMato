@@ -62,3 +62,7 @@ The command line above would run motif counting to search for motifs with 5 vert
 Clique counting can be executed using the following command line: <br />
 
 > ./clique datasets/citeseer.edgelist 5 102400 256 80 30 16
+
+## References
+
+S. Ferraz, V. Dias, C. H. C. Teixeira, G. Teodoro and W. Meira, "Efficient Strategies for Graph Pattern Mining Algorithms on GPUs," 2022 IEEE 34th International Symposium on Computer Architecture and High Performance Computing (SBAC-PAD), Bordeaux, France, 2022, pp. 110-119, doi: 10.1109/SBAC-PAD55451.2022.00022.
