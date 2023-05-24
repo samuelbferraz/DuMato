@@ -30,33 +30,35 @@ The flag *compute_capability* is the compute capability of your NVIDIA GPU. For 
 
 ## Datasets
 
-Datasets are available as a zip file in the *data* directory. Due to the lack of space in github, the large datasets can be obtained contacting the authors later. Please download, unzip and place the files into the *data* folder prior to the execution.
+Some datasets are available in the *dataset* directory. Du to lack of space in github, the full set of datasets can be obtained in the following link: YYY
 
 ## Dictionaries
 
-Dictionaries (needed for canonical relabeling on GPU) are available as a zip file in the *dictionaries* directory. Due to the lack of space in github, the large dictionaries can be obtained contacting the authors later. Please download, unzip and place the files into the *dictionaries* folder prior to the execution.
+Some dictionaries (needed for canonical relabeling on GPU) are available in the *dictionaries* directory. Due to the lack of space in github, the full set of dictionaries can be obtained in the following link: YYY.
 
 ## Executing applications
 Both applications (clique counting and motif counting) require the following arguments for execution:
 
->./app_name graph_file k number_of_threads block_size number_of_SMs report_interval canonical_relabeling
+>./app_name graph_file k number_of_threads block_size number_of_SMs load_balancing_threshold jobs_per_warp
 
 Where:
 > -app_name: motif_counting or clique_counting. <br />
 > -graph_file: url of graph dataset.<br />
 > -k: size of enumerated subgraphs.<br />
 > -number_of_threads: number of threads to instantiate on GPU.<br />
+> -block_size: block size on GPU.<br/>
 > -number_of_SMS: number of streaming multiprocessor (SM) in the target GPU. Needed for the runtime report.<br />
-> -report_interval: the frequency (in millisecons) the runtime report should appear in the screen during execution.<br />
-> -canonical_relabeling: a flag (0 for false and 1 for true) to indicate whether your application requires canonical relabeling on GPU.<br />
+> -load_balancing_threshold: the threshold (percentage) of idle threads allowed in the enumeration. After this threshold, the load-balancing layer is invoked.<br />
+> -jobs_per_warp: the size of the job queue per warp.<br />
 
+Our experimental evaluation suggests that 102400 threads, blocks with 256 threads, 30\% of load balancing threshold and 16 jobs per warp is a good choice.
 
 For example, motif counting can be executed using the following command line: <br />
 
-> ./motif_counting data/dblp.edgelist 4 409600 256 80 90 1000 1
+> ./motifs datasets/citeseer.edgelist 5 102400 256 80 30 16
 
 The command line above would run motif counting to search for motifs with 5 vertices using 409600 threads, blocks with 256 threads, a GPU with 80 SMs, a threshold of 10\% (up to 90\% of threads are allowed to be idle), a runtime report being exhibit every second (1000 ms) and canonical relabeling required on GPU.
 
 Clique counting can be executed using the following command line: <br />
 
-> ./clique_counting data/dblp.edgelist 4 409600 256 80 90 1000 0
+> ./clique datasets/citeseer.edgelist 5 102400 256 80 30 16

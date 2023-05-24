@@ -14,7 +14,6 @@ int main(int argc, const char** argv)
     int numberOfSMs = atoi(argv[5]);
     int globalThreshold = atoi(argv[6]);
     int jobsPerWarp = atoi(argv[7]);
-    int checkFlag = atoi(argv[8]);
     int balancingInterval = 200;
 
     Manager* manager = new Manager(graphFile, k, numberOfActiveThreads, blockSize, clique, numberOfSMs, 100, jobsPerWarp, 0);
@@ -40,7 +39,6 @@ int main(int argc, const char** argv)
     manager->copyResult();
     manager->stopTimer();
     manager->printCount();
-    manager->check(checkFlag);
 
     printf("%f\n", manager->getRuntimeInSeconds());
 
