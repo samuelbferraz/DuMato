@@ -12,18 +12,15 @@
 typedef struct {
     int *id;
     int *numberOfExtensions;
+    int *currentPosOfJob;
+    int *currentJob;
+    int *jobs; 
 } Embeddings;
-
-typedef struct {
-    int* extensions;
-    // long unsigned int *extensionsQuick;
-    int* extensionSources;
-    int* extensionSourcesOffset;
-} Extensions;
 
 typedef struct {
     int wid;
     int targetLevel;
+    int weight;
 } Donator;
 
 #endif

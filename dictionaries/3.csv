@@ -1,0 +1,16 @@
+#quick,cg_local
+4
+0,0
+1,1
+2,1
+3,2
+#cg_local,cg_global
+3
+0,4
+1,6
+2,7
+#cg_local,amount_of_quicks,quicks
+3
+0,1,0
+1,2,1,2
+2,1,3

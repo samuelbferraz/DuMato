@@ -6,15 +6,25 @@
 #include <thread>
 #include <unordered_map>
 #include <ctime>
+#include <algorithm>
+#include <string>
+#include <stdlib.h>
 #include "Manager.h"
 #include "Timer.h"
 #include "CudaHelperFunctions.h"
+#include "EnumerationHelper.h"
 #define MAXN 10
 #include "nauty.h"
 
-Manager::Manager(const char* graphFile, int k, int numberOfActiveThreads, int blockSize, void (*kernel)(Device*), bool getcanon, int numberOfWorkerThreads, int numberOfSMs, int reportInterval, bool canonical_relabeling) {
+Manager::Manager(const char* graphFile, int k, int numberOfActiveThreads, int blockSize, void (*kernel)(Device*), int numberOfSMs, int reportInterval, int jobsPerWarp, int induce) {
     this->h_k = k;
-    this->quickMapping = new QuickMapping(k, canonical_relabeling);
+
+    if(induce)
+        this->quickMapping = new QuickMapping(k);
+    else
+        this->quickMapping = new QuickMapping(-1);
+
+    this->graphFile = graphFile;
     this->mainGraph = new Graph(graphFile);
     this->h_numberOfActiveThreads = numberOfActiveThreads;
     this->blockSize = blockSize;
@@ -23,56 +33,43 @@ Manager::Manager(const char* graphFile, int k, int numberOfActiveThreads, int bl
     this->percentageWarpsIdle = 0;
     this->kernel = kernel;
     this->timer = new Timer();
-    this->numberOfWorkerThreads = numberOfWorkerThreads;
     this->gpuFinished = false;
-    this->getcanon = getcanon;
     this->numberOfSMs = numberOfSMs;
     this->smOccupancy = new int[numberOfSMs];
     this->currentRound = 0;
     this->reportInterval = reportInterval;
+    this->h_induce = induce;
+    
 
     quickToCgMap = new std::unordered_map<unsigned int,unsigned int>();
-    cgCounting = new std::unordered_map<unsigned int, unsigned long int>*[numberOfWorkerThreads];
     cgs = new std::set<unsigned int>();
 
     h_maxVertexId = mainGraph->getMaxVertexId();
     h_maxDegree = mainGraph->getMaxDegree();
 
-    // std::cout << "Done!" << "\n";
-
     h_warpSize = 32;
-    // std::cout << h_numberOfActiveThreads << " active threads\n";
+ 
     numberOfBlocks = ceil(h_numberOfActiveThreads/(float)blockSize);
     warpsPerBlock = blockSize / h_warpSize;
     numberOfWarps = numberOfBlocks * warpsPerBlock;
 
     this->device = (Device*)malloc(sizeof(Device));
+    this->h_jobsPerWarp = jobsPerWarp;
+    this->h_initialJobsPerWarp = ceil((h_maxVertexId+1)/(float)numberOfWarps);
+    this->h_theoreticalJobsPerWarp = std::max(h_initialJobsPerWarp, h_jobsPerWarp);
+
+    if(h_initialJobsPerWarp > h_jobsPerWarp) {
+        printf("******************WARNING******************\n");
+        printf("Initial jobs per warp higher than the jobs used during rebalancing.\n");
+        printf("Initial jobs per warp: %d, jobs per warp during rebalancing: %d.\n", h_initialJobsPerWarp, h_jobsPerWarp);
+        printf("*******************************************\n");
+    }
 
     gpuErrchk(cudaStreamCreate(&main));
     gpuErrchk(cudaStreamCreate(&memory));
     gpuErrchk(cudaStreamCreate(&bufferStream));
 
     prepareDataStructures();
-
-    chunksWorker = new unsigned int*[numberOfWorkerThreads];
-    chunksWorkerSize = new int[numberOfWorkerThreads];
-    chunksEmptySemaphore = new sem_t[CHUNKS_CPU];
-    chunksFullSemaphore = new sem_t[CHUNKS_CPU];
-    for(int i = 0 ; i < numberOfWorkerThreads ; i++) {
-        chunksWorker[i] = new unsigned int[CHUNK_SIZE];
-        cgCounting[i] = new std::unordered_map<unsigned int,unsigned long int>();
-    }
-    for(int i = 0 ; i < CHUNKS_CPU ; i++) {
-        sem_init(&(chunksEmptySemaphore[i]), 0, 1);
-        sem_init(&(chunksFullSemaphore[i]), 0, 0);
-    }
-
-    if(getcanon) {
-        readGpuBufferThread = new std::thread(readGpuBufferFunction, this);
-        workersThread = new std::thread*[numberOfWorkerThreads];
-        for(int i = 0 ; i < numberOfWorkerThreads ; i++)
-            workersThread[i] = new std::thread(induceCanonicalizeFunction, this, i);
-    }
 
     reportThread = new std::thread(reportFunction, this);
 }
@@ -85,24 +82,25 @@ Manager::~Manager() {
     cudaFree(device->d_vertexOffset);
     cudaFree(device->d_adjacencyList);
     cudaFree(device->d_id);
+    cudaFree(device->d_jobs);
+    cudaFree(device->d_inductions);
+    cudaFree(device->d_jobsPerWarp);
+    cudaFree(device->d_currentJob);
+    cudaFree(device->d_currentPosOfJob);
+    cudaFree(device->d_validJobs);
     cudaFree(device->d_numberOfExtensions);
-    cudaFree(device->d_embeddings);
     cudaFree(device->d_result);
     cudaFree(device->d_status);
     cudaFree(device->d_smid);
     cudaFree((int*)device->d_globalVertexId);
-    cudaFree(device->d_ext);
     cudaFree(device->d_extensions);
-    // cudaFree(device->d_extensionsQuick);
     cudaFree(device->d_extensionSources);
-    cudaFree(device->d_extensionSourcesOffset);
-    cudaFree(device->d_updateCompactionCounters);
     cudaFree(device->d_buffer);
     cudaFree(device->d_bufferCounter);
-    cudaFree(device->d_chunksStatus);
     cudaFree(device->d_localSubgraphInduction);
     cudaFree(device->d_quickToCgLocal);
     cudaFree(device->d_hashPerWarp);
+    cudaFree(device->d_induce);
 
     cudaFree((bool*)device->d_stop);
     cudaFree(device->d_currentPos);
@@ -110,15 +108,16 @@ Manager::~Manager() {
     free(h_degree);
     free(h_vertexOffset);
     free(h_adjacencyList);
-    free(h_embeddings->id);
-    free(h_embeddings->numberOfExtensions);
-    free(h_embeddings);
-    free(h_extensions->extensions);
-    // free(h_extensions->extensionsQuick);
+    free(h_id);
+    free(h_jobs);
+    free(h_inductions);
+    free(h_numberOfExtensions);
+    free(h_currentJob);
+    free(h_currentPosOfJob);
+    free(h_validJobs);
+    
     free(h_extensions);
     free(h_extensionsOffset);
-    free(h_buffer);
-    free(h_chunksStatus);
     free(h_currentPos);
     free(h_hashPerWarp);
     free(h_hashGlobal);
@@ -135,29 +134,7 @@ Manager::~Manager() {
 
     delete mainGraph;
     delete timer;
-    if(getcanon)
-        delete readGpuBufferThread;
 
-
-    for(int i = 0 ; i < numberOfWorkerThreads ; i++) {
-        delete[] chunksWorker[i];
-        if(getcanon)
-            delete workersThread[i];
-        delete cgCounting[i];
-    }
-
-    for(int i = 0 ; i < CHUNKS_CPU ; i++) {
-        sem_destroy(&chunksEmptySemaphore[i]);
-        sem_destroy(&chunksFullSemaphore[i]);
-    }
-
-    delete[] chunksWorker;
-    delete[] chunksWorkerSize;
-    delete[] chunksEmptySemaphore;
-    delete[] chunksFullSemaphore;
-    if(getcanon)
-        delete[] workersThread;
-    delete[] cgCounting;
     delete quickToCgMap;
     delete cgs;
     delete quickMapping;
@@ -183,15 +160,17 @@ void Manager::initializeHostDataStructures() {
     h_degree = (int*)malloc((mainGraph->getMaxVertexId()+1)*sizeof(int));
     h_hashPerWarp = (unsigned long long*)malloc(numberOfWarps*quickMapping->numberOfCgs * sizeof(unsigned long long));
     h_hashGlobal = (long unsigned int*)malloc(quickMapping->numberOfCgs * sizeof(long unsigned int));
-    h_localSubgraphInduction = (long unsigned int*)malloc(numberOfWarps * h_k * sizeof(long unsigned int));
+    h_localSubgraphInduction = (long unsigned int*)malloc(numberOfWarps * h_warpSize * sizeof(long unsigned int));
 
-    h_embeddings = (Embeddings*)malloc(sizeof(Embeddings));
-    h_embeddings->id = (int*)malloc(numberOfWarps * h_warpSize * sizeof(int));
-    h_embeddings->numberOfExtensions = (int*)malloc(numberOfWarps * h_warpSize * sizeof(int));
-    h_extensions = (Extensions*)malloc(sizeof(Extensions));
-    h_extensions->extensions = (int*)malloc(numberOfWarps * h_extensionsLength * sizeof(int));
-    // h_extensions->extensionsQuick = (long unsigned int*)malloc(numberOfWarps * h_extensionsLength * sizeof(long unsigned int));
-
+    h_id = (int*)malloc(numberOfWarps * h_warpSize * sizeof(int));
+    h_numberOfExtensions = (int*)malloc(numberOfWarps * h_warpSize * sizeof(int));
+    h_currentJob = (int*)malloc(numberOfWarps * sizeof(int));
+    h_currentPosOfJob = (int*)malloc(numberOfWarps * h_theoreticalJobsPerWarp * sizeof(int));
+    h_validJobs = (int*)malloc(numberOfWarps * sizeof(int));
+    h_jobs = (int*)malloc(numberOfWarps * h_theoreticalJobsPerWarp * h_warpSize * sizeof(int));
+    h_inductions = (int*)malloc(numberOfWarps * h_theoreticalJobsPerWarp * h_warpSize * sizeof(int));
+    h_extensions = (int*)malloc(numberOfWarps * h_extensionsLength * sizeof(int));
+    
     gpuErrchk(cudaMallocHost((void**)&h_status, h_numberOfActiveThreads * sizeof(int)));
     gpuErrchk(cudaMallocHost((void**)&h_smid, h_numberOfActiveThreads * sizeof(int)));
     gpuErrchk(cudaMallocHost((void**)&h_stop, sizeof(bool)));
@@ -221,17 +200,25 @@ void Manager::initializeHostDataStructures() {
     }
     h_vertexOffset[mainGraph->getMaxVertexId()+1] = h_vertexOffset[mainGraph->getMaxVertexId()]+h_degree[mainGraph->getMaxVertexId()]+1;
 
-    // Sum of PA [2 ... k-1], needed to store each quick pattern
-    h_bufferSize = ((h_k+1)*(h_k-2))/2;
-    h_bufferSize = pow(2, h_bufferSize);
-    h_buffer = (unsigned int*)malloc(CPU_BUFFER_SIZE * h_k * sizeof(unsigned int));
-    h_chunksStatus = (int*)malloc(CHUNKS_CPU * sizeof(int));
-    h_keepMonitoring = false;
+    memset(h_localSubgraphInduction, 0, numberOfWarps * h_warpSize * sizeof(long unsigned int));
 
-    for(int i = 0 ; i < CHUNKS_CPU ; i++)
-        h_chunksStatus[i] = 0;
+    for(int i = 0 ; i < numberOfWarps ; i++) {
+        h_currentJob[i] = 0;
+        h_validJobs[i] = 0;
+    }
+    for(int round = 0 ; round < h_initialJobsPerWarp ; round++) {
+        for(int i = 0 ; i < numberOfWarps ; i++) {
+            int jobId = round*numberOfWarps+i;
+            if(jobId <= h_maxVertexId) {
+                h_validJobs[i]++;
+                h_jobs[i*h_theoreticalJobsPerWarp*h_warpSize + round*h_warpSize + 0] = jobId;
+                h_currentPosOfJob[i*h_theoreticalJobsPerWarp+round] = 0;
+            } 
+        }
+    }
 
-    memset(h_localSubgraphInduction, 0, numberOfWarps * h_k * sizeof(long unsigned int));
+    for(int i = 0 ; i < h_numberOfActiveThreads ; i++)
+        h_status[i] = 2;
 }
 
 void Manager::initializeDeviceDataStructures() {
@@ -239,51 +226,41 @@ void Manager::initializeDeviceDataStructures() {
     gpuErrchk(cudaMalloc((void**)&device->d_adjacencyList, (mainGraph->getNumberOfEdges()*2 + (mainGraph->getMaxVertexId()+1)) * sizeof(int)));
     gpuErrchk(cudaMalloc((void**)&device->d_degree, (mainGraph->getMaxVertexId()+1)*sizeof(int)));
 
-    gpuErrchk(cudaMalloc((void**)&device->d_embeddings, sizeof(Embeddings)));
     gpuErrchk(cudaMalloc((void**)&device->d_id, numberOfWarps * h_warpSize * sizeof(int)));
+    gpuErrchk(cudaMalloc((void**)&device->d_jobs, numberOfWarps * h_theoreticalJobsPerWarp * h_warpSize * sizeof(int)));
+    gpuErrchk(cudaMalloc((void**)&device->d_inductions, numberOfWarps * h_theoreticalJobsPerWarp * h_warpSize * sizeof(int)));
+    gpuErrchk(cudaMalloc((void**)&device->d_jobsPerWarp, sizeof(int)));
+    gpuErrchk(cudaMalloc((void**)&device->d_currentJob, numberOfWarps * sizeof(int)));
+    gpuErrchk(cudaMalloc((void**)&device->d_currentPosOfJob, numberOfWarps * h_theoreticalJobsPerWarp * sizeof(int)));
+    gpuErrchk(cudaMalloc((void**)&device->d_validJobs, numberOfWarps * sizeof(int)));
     gpuErrchk(cudaMalloc((void**)&device->d_numberOfExtensions, numberOfWarps * h_warpSize * sizeof(int)));
     gpuErrchk(cudaMalloc((void**)&device->d_result, numberOfWarps * sizeof(unsigned long)));
     gpuErrchk(cudaMalloc((void**)&device->d_status, h_numberOfActiveThreads * sizeof(int)));
     gpuErrchk(cudaMalloc((void**)&device->d_smid, h_numberOfActiveThreads * sizeof(int)));
     gpuErrchk(cudaMalloc((void**)&device->d_globalVertexId, sizeof(int)));
 
-    gpuErrchk(cudaMalloc((void**)&device->d_ext, sizeof(Extensions)));
     gpuErrchk(cudaMalloc((void**)&device->d_extensions, numberOfWarps * h_extensionsLength * sizeof(int)));
-    // gpuErrchk(cudaMalloc((void**)&device->d_extensionsQuick, numberOfWarps * h_extensionsLength * sizeof(long unsigned int)));
     gpuErrchk(cudaMalloc((void**)&device->d_extensionSources, numberOfWarps * h_extensionsLength * sizeof(int)));
-    gpuErrchk(cudaMalloc((void**)&device->d_extensionSourcesOffset, numberOfWarps * h_k * h_k * sizeof(int)));
-    gpuErrchk(cudaMalloc((void**)&device->d_updateCompactionCounters, numberOfWarps * h_k * sizeof(int)));
     gpuErrchk(cudaMalloc((void**)&device->d_buffer, GPU_BUFFER_SIZE * h_k * sizeof(unsigned int)));
     gpuErrchk(cudaMalloc((void**)&device->d_bufferCounter, sizeof(unsigned int)));
-    gpuErrchk(cudaMalloc((void**)&device->d_chunksStatus, CHUNKS_GPU * sizeof(int)));
-    gpuErrchk(cudaMalloc((void**)&device->d_localSubgraphInduction, numberOfWarps * h_k * sizeof(long unsigned int)));
+    gpuErrchk(cudaMalloc((void**)&device->d_localSubgraphInduction, numberOfWarps * h_warpSize * sizeof(long unsigned int)));
     gpuErrchk(cudaMalloc((void**)&device->d_hashPerWarp, numberOfWarps * quickMapping->numberOfCgs * sizeof(unsigned long long)));
     gpuErrchk(cudaMalloc((void**)&device->d_stop, sizeof(bool)));
     gpuErrchk(cudaMalloc((void**)&device->d_currentPos, numberOfWarps * sizeof(int)));
+    gpuErrchk(cudaMalloc((void**)&device->d_induce, sizeof(int)));
 
     gpuErrchk(cudaMalloc((void**)&device->d_k, sizeof(int)));
     gpuErrchk(cudaMalloc((void**)&device->d_extensionsLength, sizeof(int)));
     gpuErrchk(cudaMalloc((void**)&device->d_warpSize, sizeof(int)));
     gpuErrchk(cudaMalloc((void**)&device->d_extensionsOffset, (h_k-1) * sizeof(int)));
-    gpuErrchk(cudaMalloc((void**)&device->d_quickToCgLocal, quickMapping->numberOfQuicks * sizeof(unsigned int)));
+    gpuErrchk(cudaMalloc((void**)&device->d_quickToCgLocal, quickMapping->numberOfQuicks * sizeof(long unsigned int)));
     gpuErrchk(cudaMalloc((void**)&device->d_numberOfActiveThreads, sizeof(int)));
     gpuErrchk(cudaMalloc((void**)&device->d_maxVertexId, sizeof(int)));
     gpuErrchk(cudaMalloc((void**)&device->d_maxDegree, sizeof(int)));
     gpuErrchk(cudaMalloc((void**)&device->d_numberOfCgs, sizeof(int)));
 
     gpuErrchk(cudaMalloc((void**)&d_device, sizeof(Device)));
-
-
-
-
-    gpuErrchk(cudaMemcpy(&(device->d_embeddings->id), &device->d_id, sizeof(device->d_embeddings->id), cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpy(&(device->d_embeddings->numberOfExtensions), &device->d_numberOfExtensions, sizeof(device->d_embeddings->numberOfExtensions), cudaMemcpyHostToDevice));
-
-    gpuErrchk(cudaMemcpy(&(device->d_ext->extensions), &device->d_extensions, sizeof(device->d_ext->extensions), cudaMemcpyHostToDevice));
-    // gpuErrchk(cudaMemcpy(&(device->d_ext->extensionsQuick), &device->d_extensionsQuick, sizeof(device->d_ext->extensionsQuick), cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpy(&(device->d_ext->extensionSources), &device->d_extensionSources, sizeof(device->d_ext->extensionSources), cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpy(&(device->d_ext->extensionSourcesOffset), &device->d_extensionSourcesOffset, sizeof(device->d_ext->extensionSourcesOffset), cudaMemcpyHostToDevice));
-
+    
     gpuErrchk(cudaMemcpy(device->d_vertexOffset, h_vertexOffset, (mainGraph->getMaxVertexId()+2)*sizeof(int), cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(device->d_adjacencyList, h_adjacencyList, (mainGraph->getNumberOfEdges()*2 + (mainGraph->getMaxVertexId()+1)) * sizeof(int), cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(device->d_degree, h_degree, (mainGraph->getMaxVertexId()+1)*sizeof(int), cudaMemcpyHostToDevice));
@@ -295,28 +272,28 @@ void Manager::initializeDeviceDataStructures() {
     gpuErrchk(cudaMemcpy(device->d_extensionsLength, &h_extensionsLength, sizeof(int), cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(device->d_warpSize, &h_warpSize, sizeof(int), cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(device->d_extensionsOffset, h_extensionsOffset, (h_k-1) * sizeof(int), cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpy(device->d_quickToCgLocal, quickMapping->quickToCgLocal, quickMapping->numberOfQuicks * sizeof(unsigned int), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(device->d_quickToCgLocal, quickMapping->quickToCgLocal, quickMapping->numberOfQuicks * sizeof(long unsigned int), cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(device->d_numberOfActiveThreads, &h_numberOfActiveThreads, sizeof(int), cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(device->d_maxVertexId, &h_maxVertexId, sizeof(int), cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(device->d_maxDegree, &h_maxDegree, sizeof(int), cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(device->d_numberOfCgs, &(quickMapping->numberOfCgs), sizeof(int), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(device->d_jobsPerWarp, &h_theoreticalJobsPerWarp, sizeof(int), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(device->d_induce, &h_induce, sizeof(int), cudaMemcpyHostToDevice));
 
-    gpuErrchk(cudaMemset(device->d_status, 0, h_numberOfActiveThreads * sizeof(int)));
+    gpuErrchk(cudaMemcpy(device->d_jobs, h_jobs, numberOfWarps * h_theoreticalJobsPerWarp * h_warpSize * sizeof(int), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(device->d_currentJob, h_currentJob, numberOfWarps * sizeof(int), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(device->d_validJobs, h_validJobs, numberOfWarps * sizeof(int), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(device->d_currentPosOfJob, h_currentPosOfJob, numberOfWarps * h_theoreticalJobsPerWarp * sizeof(int), cudaMemcpyHostToDevice));
+    
+    gpuErrchk(cudaMemcpy(device->d_status, h_status, h_numberOfActiveThreads * sizeof(int), cudaMemcpyHostToDevice));
+
+    // gpuErrchk(cudaMemset(device->d_status, 0, h_numberOfActiveThreads * sizeof(int)));
     gpuErrchk(cudaMemset(device->d_smid, 0, h_numberOfActiveThreads * sizeof(int)));
     gpuErrchk(cudaMemset(device->d_bufferCounter, 0, sizeof(unsigned int)));
-    gpuErrchk(cudaMemset(device->d_chunksStatus, 0, CHUNKS_GPU * sizeof(int)));
-    gpuErrchk(cudaMemset(device->d_localSubgraphInduction, 0, numberOfWarps * h_k * sizeof(long unsigned int)));
+    gpuErrchk(cudaMemset(device->d_localSubgraphInduction, 0, numberOfWarps * h_warpSize * sizeof(long unsigned int)));
     gpuErrchk(cudaMemset(device->d_hashPerWarp, 0, numberOfWarps * quickMapping->numberOfCgs * sizeof(unsigned long long)));
-
+    
     gpuErrchk(cudaMemcpy(d_device, device, sizeof(Device), cudaMemcpyHostToDevice));
-    /* Workaround to allow global __device__ variables */
-    // gpuErrchk(cudaMemcpyToSymbol(device->ds_vertexOffset, &device->d_vertexOffset, sizeof(device->d_vertexOffset)));
-    // gpuErrchk(cudaMemcpyToSymbol(device->ds_adjacencyList, &device->d_adjacencyList, sizeof(device->d_adjacencyList)));
-    // gpuErrchk(cudaMemcpyToSymbol(device->ds_degree, &device->d_degree, sizeof(device->d_degree)));
-    // gpuErrchk(cudaMemcpyToSymbol(device->ds_embeddings, &device->d_embeddings, sizeof(device->d_embeddings)));
-    // gpuErrchk(cudaMemcpyToSymbol(device->ds_extensions, &device->d_ext, sizeof(device->d_ext)));
-
-
 }
 
 void Manager::prepareDataStructures() {
@@ -364,9 +341,10 @@ void Manager::detailedIdlenessReport() {
      std::cout << "-> Amount active: " << amountActive << "\n";
 }
 
-void Manager::shortIdlenessReport() {
+void Manager::shortIdlenessReport(const char* message) {
     std::time_t result = std::time(nullptr);
-    printf("[REBALANCING] warps idle: %d, numberOfWarps: %d, %f warps active, %s", amountWarpsIdle, numberOfWarps, 100-percentageWarpsIdle, std::asctime(std::localtime(&result)));
+    printf("%s warps idle: %d, numberOfWarps: %d, %f%% warps active, %s", message, amountWarpsIdle, numberOfWarps, 100-percentageWarpsIdle, std::asctime(std::localtime(&result)));
+    smOccupancyReport();
 }
 
 void Manager::smOccupancyReport() {
@@ -380,8 +358,13 @@ void Manager::smOccupancyReport() {
     }
     //
     for(int smId = 0 ; smId < numberOfSMs ; smId++) {
-        std::cout << currentRound << "," << smId << "," << smOccupancy[smId] << "\n";
+        std::cout << smOccupancy[smId] << ",";
     }
+    std::cout << "\n";
+
+}
+
+void Manager::queuesReport() {
 
 }
 
@@ -420,17 +403,28 @@ void Manager::stopKernel(){
 
 //TODO Leave this function more "high-level" to allow customizations from user.
 bool Manager::rebalance() {
+    Timer* timer = new Timer();
+    timer->play();
+
     copyWarpDataFromGpu();
     copyResult();
     std::vector<int> idles, indifferents;
-    std::queue<Donator*> actives;
-    organizeThreadStatus(&idles, &actives, &indifferents);
+    std::priority_queue<Donator*, std::vector<Donator*>, Comparator> actives;
+    int totalWeight = organizeThreadStatus(&idles, &actives, &indifferents);
+    // printf("idles size: %lu, actives size: %lu, indifferents size: %lu\n", idles.size(), actives.size(), indifferents.size());
     if(actives.size() > 0) {
-        donate(&idles, &actives);
+        bool full = donate(&idles, &actives, totalWeight);
         copyWarpDataBackToGpu();
+        timer->pause();
+
+        printf("[REBALANCING] time: %.3f, full: %s, totalWeight: %d, #jobs/#idle_warps: %.2f\n", timer->getElapsedTimeInMiliseconds(), full ? "yes" : "no", totalWeight, (float)totalWeight/idles.size());
+        delete timer;
+
         return true;
     }
     else {
+        delete timer;
+
         invalidateResult();
         return false;
     }
@@ -443,10 +437,14 @@ void Manager::copyResult() {
         result += h_result[i];
     }
 
-    // gpuErrchk(cudaMemcpy(h_buffer, device->d_buffer, result * h_k * sizeof(unsigned int), cudaMemcpyDeviceToHost));
 }
 
 void Manager::aggregate() {
+    if(!h_induce) {
+        printf("ERROR! You can aggregate only with the induce option enabled...\n");
+        exit(1);
+    }
+
     gpuErrchk(cudaMemcpy(h_hashPerWarp, device->d_hashPerWarp, numberOfWarps * quickMapping->numberOfCgs * sizeof(unsigned long long), cudaMemcpyDeviceToHost));
     for(int i = 0 ; i < numberOfWarps ; i++) {
         for(int j = 0 ; j < quickMapping->numberOfCgs ; j++) {
@@ -459,28 +457,18 @@ void Manager::printResult() {
     aggregate();
 
     long unsigned int validSubgraphs = 0;
-    for(int i = 0 ; i < quickMapping->numberOfCgs ; i++)
-        validSubgraphs += h_hashGlobal[i];
+    for(int i = 0 ; i < quickMapping->numberOfCgs ; i++) {
+        if(h_hashGlobal[i] > 0) {
+            // printf("%d, %lu\n", i, h_hashGlobal[i]);
+            validSubgraphs += h_hashGlobal[i];
+        }
+    }
 
-    // for(int i = 0 ; i < result ; i++) {
-    //     for(int j = 0 ; j < h_k-1 ; j++) {
-    //         printf("%d,", h_buffer[i*h_k+j]);
-    //     }
-    //     printf("%d\n", h_buffer[((i+1)*h_k)-1]);
-    // }
-    // canonicalizeBufferSerial();
-
-    printf("Total number of motifs: %lu\n", validSubgraphs);
-    // for(int i = 0 ; i < h_bufferCounter ; i++) {
-    //     for(int k = 0 ; k < h_k ; k++) {
-    //         printf("%d ", h_buffer[i*h_k + k]);
-    //     }
-    //     printf("\n");
-    // }
+    printf("(%lu,%lu)\n", result, validSubgraphs);
 }
 
 void Manager::printCount() {
-    printf("%lu\n", result);
+    printf("(%lu)\n", result);
 }
 
 void Manager::loadGpuThreadStatus() {
@@ -532,9 +520,9 @@ double Manager::percentageWarpIdleness() {
 
 void Manager::copyWarpDataFromGpu() {
     //  Read:
-    //      - h_embeddings -> id
-    //      - h_embeddings -> numberOfExtensions
-    //      - h_extensions -> extensions
+    //      - h_id
+    //      - h_numberOfExtensions
+    //      - h_extensions
     //      - h_status
     //      - h_currentPos
     //      - h_extensionsOffset (don't have to be copied, 'cause it's calculated previously)
@@ -542,14 +530,18 @@ void Manager::copyWarpDataFromGpu() {
 
     // Consistent copy of h_status array
     // std::cout << "Copying result from device...\n";
-    gpuErrchk(cudaMemcpy(h_embeddings->id, device->d_id, numberOfWarps * h_warpSize * sizeof(int), cudaMemcpyDeviceToHost));
-    gpuErrchk(cudaMemcpy(h_embeddings->numberOfExtensions, device->d_numberOfExtensions, numberOfWarps * h_warpSize * sizeof(int), cudaMemcpyDeviceToHost));
-    gpuErrchk(cudaMemcpy(h_extensions->extensions, device->d_extensions, numberOfWarps * h_extensionsLength * sizeof(int), cudaMemcpyDeviceToHost));
-    // gpuErrchk(cudaMemcpy(h_extensions->extensionsQuick, device->d_extensionsQuick, numberOfWarps * h_extensionsLength * sizeof(long unsigned int), cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(h_id, device->d_id, numberOfWarps * h_warpSize * sizeof(int), cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(h_jobs, device->d_jobs, numberOfWarps * h_theoreticalJobsPerWarp * h_warpSize * sizeof(int), cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(h_inductions, device->d_inductions, numberOfWarps * h_theoreticalJobsPerWarp * h_warpSize * sizeof(int), cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(h_currentJob, device->d_currentJob, numberOfWarps * sizeof(int), cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(h_currentPosOfJob, device->d_currentPosOfJob, numberOfWarps * h_theoreticalJobsPerWarp * sizeof(int), cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(h_validJobs, device->d_validJobs, numberOfWarps * sizeof(int), cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(h_numberOfExtensions, device->d_numberOfExtensions, numberOfWarps * h_warpSize * sizeof(int), cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(h_extensions, device->d_extensions, numberOfWarps * h_extensionsLength * sizeof(int), cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(h_status, device->d_status, h_numberOfActiveThreads*sizeof(int), cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(h_smid, device->d_smid, h_numberOfActiveThreads*sizeof(int), cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(h_currentPos, device->d_currentPos, numberOfWarps * sizeof(int), cudaMemcpyDeviceToHost));
-    gpuErrchk(cudaMemcpy(h_localSubgraphInduction, device->d_localSubgraphInduction, numberOfWarps * h_k * sizeof(long unsigned int), cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(h_localSubgraphInduction, device->d_localSubgraphInduction, numberOfWarps * h_warpSize * sizeof(long unsigned int), cudaMemcpyDeviceToHost));
 
 }
 
@@ -559,63 +551,71 @@ void Manager::invalidateResult() {
 
 void Manager::copyWarpDataBackToGpu() {
     //  Written
-    //      - h_embeddings->id
-    //      - h_embeddings->numberOfExtensions
+    //      - h_id
+    //      - h_numberOfExtensions
     //      - h_currentPos
     //      - h_stop
 
-    gpuErrchk(cudaMemcpy(device->d_id, h_embeddings->id, numberOfWarps * h_warpSize * sizeof(int), cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpy(device->d_numberOfExtensions, h_embeddings->numberOfExtensions, numberOfWarps * h_warpSize * sizeof(int), cudaMemcpyHostToDevice));
+    // gpuErrchk(cudaMemcpy(device->d_id, h_id, numberOfWarps * h_warpSize * sizeof(int), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(device->d_jobs, h_jobs, numberOfWarps * h_theoreticalJobsPerWarp * h_warpSize * sizeof(int), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(device->d_inductions, h_inductions, numberOfWarps * h_theoreticalJobsPerWarp * h_warpSize * sizeof(int), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(device->d_currentJob, h_currentJob, numberOfWarps * sizeof(int), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(device->d_currentPosOfJob, h_currentPosOfJob, numberOfWarps * h_theoreticalJobsPerWarp * sizeof(int), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(device->d_validJobs, h_validJobs, numberOfWarps * sizeof(int), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(device->d_numberOfExtensions, h_numberOfExtensions, numberOfWarps * h_warpSize * sizeof(int), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(device->d_extensions, h_extensions, numberOfWarps * h_extensionsLength * sizeof(int), cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(device->d_currentPos, h_currentPos, numberOfWarps * sizeof(int), cudaMemcpyHostToDevice));
     *h_stop = false;
     gpuErrchk(cudaMemcpy((bool*)device->d_stop, h_stop, sizeof(bool), cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpy(device->d_localSubgraphInduction, h_localSubgraphInduction, numberOfWarps * h_k * sizeof(long unsigned int), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(device->d_localSubgraphInduction, h_localSubgraphInduction, numberOfWarps * h_warpSize * sizeof(long unsigned int), cudaMemcpyHostToDevice));
     cudaDeviceSynchronize();
 }
 
-void Manager::printQueue(std::queue<Donator*> queue) {
-    while(!queue.empty()) {
-        Donator* donator = queue.front();
-        std::cout << "[ACTIVE]:" << donator->wid << ";" << donator->targetLevel << "\n";
-        queue.pop();
-    }
-}
-
-void Manager::organizeThreadStatus(std::vector<int>* idles, std::queue<Donator*>* actives, std::vector<int>* indifferents) {
+int Manager::organizeThreadStatus(std::vector<int>* idles, std::priority_queue<Donator*, std::vector<Donator*>, Comparator>* actives, std::vector<int>* indifferents) {
+    // printf("#organizeThreadStatus\n");
     //  Data structures read
     //      - h_status
     //      - h_currentPos
     //      - h_embeddigs->numberOfExtensions
-
+    int totalWeight = 0;
     for(int i = 0, wid ; i < h_numberOfActiveThreads ; i+=h_warpSize) {
         // std::cout << i << "\n";
         wid = (int)(i/h_warpSize);
-        if(h_status[i] == 2) {
+
+        EnumerationHelper *helper = new EnumerationHelper(wid, h_k, h_warpSize, h_theoreticalJobsPerWarp, h_extensionsLength, h_id, h_extensions, h_extensionsOffset, h_numberOfExtensions, h_currentPos, h_currentPosOfJob, h_localSubgraphInduction, h_inductions, h_validJobs, h_currentJob, h_jobs, h_result);
+
+        // Idles for sure
+        if(h_status[i] == 2 && helper->jobQueueIsEmpty()) {
             // std::cout << "IDLE at all\n";
             idles->push_back(wid);
         }
-        else {
-            bool active = false;
-            int offsetWarp = wid * h_warpSize;
-            for(int k = 0 ; k <= h_currentPos[wid] && k < h_k - 2 && !active ; k++) {
-                if(h_embeddings->numberOfExtensions[offsetWarp+k] > 0) {
-                    active = true;
-                    Donator* donator = new Donator;
-                    donator->wid = wid;
-                    donator->targetLevel = k;
-                    actives->push(donator);
-                }
+        // Actives available for donation
+        else if (h_status[i] == 1) {
+            Donator* donator = new Donator;
+            int targetLevel = helper->getTargetLevel();
+            if(targetLevel != -1) {
+                donator->wid = wid;
+                donator->targetLevel = targetLevel;
+                donator->weight = helper->getWeight();
+                totalWeight += donator->weight;
+                actives->push(donator);
             }
-
-            if(!active) {
-                // std::cout << "IDLE for no options\n";
+            else {
+                // Active, but contains few jobs
                 indifferents->push_back(wid);
             }
-            // else {
-                // std::cout << "ACTIVE\n";
-            // }
         }
+        // Actives because of the unpopped job queue
+        else {
+            indifferents->push_back(wid);
+        }
+        // helper->report();
+        delete helper;
     }
+
+    // printf("INDIFFERENTS' SIZE: %lu\n", indifferents->size());
+
+    return totalWeight;
 
     // DEBUG Idles
     // std::cout << "**************\n";
@@ -638,80 +638,94 @@ void Manager::organizeThreadStatus(std::vector<int>* idles, std::queue<Donator*>
     //     std::cout << "[INDIFFERENT]:" << indifferents->at(i) << "\n";
 }
 
-void Manager::donate(std::vector<int>* idles, std::queue<Donator*>* actives) {
+bool Manager::donate(std::vector<int>* idles, std::priority_queue<Donator*, std::vector<Donator*>, Comparator>* actives, int totalWeight) {
+    // printf("#donate\n");
     //  Read:
-    //      - h_embeddings -> id
-    //      - h_embeddings -> numberOfExtensions
-    //      - h_extensions -> extensions
+    //      - h_id
+    //      - h_numberOfExtensions
+    //      - h_extensions
     //      - h_extensionsOffset
     //  Written
-    //      - h_embeddings->id
-    //      - h_embeddings->numberOfExtensions
+    //      - h_id
+    //      - h_numberOfExtensions
     //      - h_currentPos
 
+    EnumerationHelper *donatorHelper, *idleHelper;
     Donator* donator;
-    int offsetWarpIdle, offsetWarpDonator, localOffsetExtensionsDonator, numberOfExtensionsDonator, currentIdle;
+    int currentIdle;
     bool active;
 
-    for(int i = 0 ; i < idles->size() && !actives->empty() ; i++) {
+    int i = 0;
+    float idealWeight = ceil((float)totalWeight / (actives->size()+idles->size()));
+    int jobsPerWarp = idealWeight < h_jobsPerWarp ? idealWeight : h_jobsPerWarp;
 
-        currentIdle = idles->at(i);
-        donator = actives->front();
-        actives->pop();
+    printf("jobsPerWarp: %d\n", jobsPerWarp);
+    for(int job = 0 ; job < jobsPerWarp ; job++) {
+        for(i = 0 ; i < idles->size() && !actives->empty() ; i++) {
+            currentIdle = idles->at(i);
+            donator = actives->top();
+            actives->pop();
+            
+            donatorHelper = new EnumerationHelper(donator->wid, h_k, h_warpSize, h_theoreticalJobsPerWarp, h_extensionsLength, h_id, h_extensions, h_extensionsOffset, h_numberOfExtensions, h_currentPos, h_currentPosOfJob, h_localSubgraphInduction, h_inductions, h_validJobs, h_currentJob, h_jobs, h_result);
 
-        offsetWarpIdle = currentIdle*h_warpSize;
-        offsetWarpDonator = donator->wid*h_warpSize;
-        localOffsetExtensionsDonator = donator->wid * h_extensionsLength + h_extensionsOffset[donator->targetLevel];
+            // printf("[BEFORE] Donator\n");
+            // donatorHelper->report();
 
-        // std::cout << "[IDLE   ]:\t" << currentIdle << "\n";
-        // std::cout << "[DONATOR]:\t" << donator->wid << "," << h_currentPos[donator->wid] << "," << donator->targetLevel << "\n";
-        // std::cout << "[DONATOR BEFORE]\n";
-        // for(int k = 0 ; k <= h_currentPos[donator->wid] ; k++) {
-        //     std::cout << "\t " << h_embeddings->id[offsetWarpDonator+k] << "," << h_embeddings->numberOfExtensions[offsetWarpDonator+k] << "\n";
-        //     for(int j = 0 ; j < h_embeddings->numberOfExtensions[offsetWarpDonator+k] ; j++)
-        //         std::cout << "\t\t" << h_extensions->extensions[donator->wid * h_extensionsLength + h_extensionsOffset[k] + j] << "\n";
-        // }
-        // debug("DONATOR BEFORE FIRST DONATION...\n");
+            idleHelper = new EnumerationHelper(currentIdle, h_k, h_warpSize, h_theoreticalJobsPerWarp, h_extensionsLength, h_id, h_extensions, h_extensionsOffset, h_numberOfExtensions, h_currentPos, h_currentPosOfJob, h_localSubgraphInduction, h_inductions, h_validJobs, h_currentJob, h_jobs, h_result);
+            
+            // printf("[BEFORE] Idle\n");
+            // idleHelper->report();
 
-        for(int k = 0 ; k <= donator->targetLevel ; k++) {
-            h_embeddings->id[offsetWarpIdle+k] = h_embeddings->id[offsetWarpDonator+k];
-            h_localSubgraphInduction[donator->wid*h_k+k] = h_localSubgraphInduction[donator->wid*h_k+k];
-            h_embeddings->numberOfExtensions[offsetWarpIdle+k] = 0;
-        }
-        numberOfExtensionsDonator = h_embeddings->numberOfExtensions[offsetWarpDonator+donator->targetLevel];
-        h_embeddings->id[offsetWarpIdle+donator->targetLevel+1] = h_extensions->extensions[localOffsetExtensionsDonator+numberOfExtensionsDonator-1];
-        h_embeddings->numberOfExtensions[offsetWarpDonator+donator->targetLevel]--;
-        h_embeddings->numberOfExtensions[offsetWarpIdle+donator->targetLevel+1] = -1;
-        h_currentPos[currentIdle] = donator->targetLevel+1;
+            if(job == 0) {
+                idleHelper->setValidJobs(0);
+                idleHelper->setCurrentJob(0);  
+                idleHelper->setCurrentPos(-1);              
+            }
 
-        // std::cout << "[IDLE AFTER]" << "," << h_currentPos[currentIdle] << "\n";
-        // for(int k = 0 ; k <= h_currentPos[currentIdle] ; k++) {
-        //     std::cout << "\t " << h_embeddings->id[offsetWarpIdle+k] << "," << h_embeddings->numberOfExtensions[offsetWarpIdle+k] << "\n";
-        //     for(int j = 0 ; j < h_embeddings->numberOfExtensions[offsetWarpIdle+k] ; j++)
-        //         std::cout << "\t\t" << h_extensions->extensions[currentIdle * h_extensionsLength + h_extensionsOffset[k] + j] << "\n";
-        // }
+            for(int k = 0 ; k <= donator->targetLevel ; k++) {
+                idleHelper->setJob(job, k, donatorHelper->getId(k));
+                idleHelper->setInductions(job, k, donatorHelper->getLocalSubgraphInduction(k));
+            }
+            idleHelper->setJob(job, donator->targetLevel+1, donatorHelper->popLastExtension(donator->targetLevel));
+            idleHelper->setCurrentPosOfJob(job, donator->targetLevel+1);
+            idleHelper->increaseJob();
 
-        // debug("IDLE AFTER DONATION...\n");
-
-        // std::cout << "[DONATOR AFTER]\n";
-        // for(int k = 0 ; k <= h_currentPos[donator->wid] ; k++) {
-        //     std::cout << "\t " << h_embeddings->id[offsetWarpDonator+k] << "," << h_embeddings->numberOfExtensions[offsetWarpDonator+k] << "\n";
-        //     for(int j = 0 ; j < h_embeddings->numberOfExtensions[offsetWarpDonator+k] ; j++)
-        //         std::cout << "\t\t" << h_extensions->extensions[donator->wid * h_extensionsLength + h_extensionsOffset[k] + j] << "\n";
-        // }
-        // debug("DONATOR AFTER DONATION...\n");
-
-        // Remove donator or push back to the queue
-        active = false;
-        for(int k = donator->targetLevel ; k <= h_currentPos[donator->wid] && k < h_k - 2 && !active ; k++)
-            if(h_embeddings->numberOfExtensions[offsetWarpDonator+k] > 0) {
-                active = true;
-                donator->targetLevel = k;
+            // Remove donator or push back to the queue
+            int targetLevel = donatorHelper->getTargetLevel();
+            donator->weight--;
+            if(targetLevel != -1 && donator->weight >= jobsPerWarp) {
+                donator->targetLevel = targetLevel;
                 actives->push(donator);
             }
-        if(!active)
-            free(donator);
+            else {
+                free(donator);
+            }
+            
+            // printf("[AFTER] Donator\n");
+            // donatorHelper->report();
+            // printf("[AFTER] Idle\n");
+            // idleHelper->report();
+
+            delete donatorHelper;
+            delete idleHelper;
+        }
     }
+    
+
+    // JOB COST SIMULATION
+    // int j = 0;
+    // while(j < 10) {
+    //     for(i = 0 ; i < idles->size() && !actives->empty() ; i++) {
+    //         currentIdle = idles->at(i);
+    //         donator = actives->top();
+    //         actives->pop();
+    //         actives->push(donator);
+    //     }
+    //     j++;
+    // }
+
+
+    return i == idles->size();
 }
 
 void Manager::debug(const char* message) {
@@ -730,231 +744,8 @@ std::string Manager::generatePattern(graph* g, int m, int n) {
     return pattern;
 }
 
-void* Manager::readGpuBufferFunction(Manager* manager) {
-
-    int currentChunkStatus, currentGpuChunk = 0, currentCpuChunk = 0;
-    while(!(manager->gpuFinished)) {
-        gpuErrchk(cudaMemcpyAsync(&currentChunkStatus, manager->device->d_chunksStatus+currentGpuChunk, sizeof(int), cudaMemcpyDeviceToHost, manager->bufferStream));
-        gpuErrchk(cudaStreamSynchronize(manager->bufferStream));
-
-        if(currentChunkStatus == CHUNK_SIZE) {
-            sem_wait(&(manager->chunksEmptySemaphore[currentCpuChunk]));
-
-            gpuErrchk(cudaMemcpyAsync(manager->h_buffer + currentCpuChunk * CHUNK_SIZE , manager->device->d_buffer + currentGpuChunk * CHUNK_SIZE, CHUNK_SIZE * sizeof(unsigned int), cudaMemcpyDeviceToHost, manager->bufferStream));
-            gpuErrchk(cudaStreamSynchronize(manager->bufferStream));
-
-            currentChunkStatus = 0;
-            gpuErrchk(cudaMemcpyAsync(manager->device->d_chunksStatus+currentGpuChunk, &currentChunkStatus, sizeof(int), cudaMemcpyHostToDevice, manager->bufferStream));
-            gpuErrchk(cudaStreamSynchronize(manager->bufferStream));
-
-            manager->h_chunksStatus[currentCpuChunk] = CHUNK_SIZE;
-
-            sem_post(&(manager->chunksFullSemaphore[currentCpuChunk]));
-
-            // std::cout << "[readGpuBufferFunction][ORDINARY] GPU Chunk " << currentGpuChunk << " (" << manager->h_chunksStatus[currentCpuChunk] << " subgraphs) consumed by CPU Chunk " << currentCpuChunk << "\n";
-
-            currentGpuChunk = (currentGpuChunk + 1) % CHUNKS_GPU;
-            currentCpuChunk = (currentCpuChunk + 1) % CHUNKS_CPU;
-        }
-    }
-
-
-    while(true) {
-        gpuErrchk(cudaMemcpyAsync(&currentChunkStatus, manager->device->d_chunksStatus+currentGpuChunk, sizeof(int), cudaMemcpyDeviceToHost, manager->bufferStream));
-        gpuErrchk(cudaStreamSynchronize(manager->bufferStream));
-
-        if(currentChunkStatus > 0 && currentChunkStatus <= CHUNK_SIZE) {
-            sem_wait(&(manager->chunksEmptySemaphore[currentCpuChunk]));
-
-            gpuErrchk(cudaMemcpyAsync(manager->h_buffer + currentCpuChunk * CHUNK_SIZE , manager->device->d_buffer + currentGpuChunk * CHUNK_SIZE, CHUNK_SIZE * sizeof(unsigned int), cudaMemcpyDeviceToHost, manager->bufferStream));
-            gpuErrchk(cudaStreamSynchronize(manager->bufferStream));
-
-            manager->h_chunksStatus[currentCpuChunk] = currentChunkStatus;
-
-            currentChunkStatus = 0;
-            gpuErrchk(cudaMemcpyAsync(manager->device->d_chunksStatus+currentGpuChunk, &currentChunkStatus, sizeof(int), cudaMemcpyHostToDevice, manager->bufferStream));
-            gpuErrchk(cudaStreamSynchronize(manager->bufferStream));
-
-            sem_post(&(manager->chunksFullSemaphore[currentCpuChunk]));
-
-            // std::cout << "[readGpuBufferFunction][RESIDUAL] GPU Chunk " << currentGpuChunk << " (" << manager->h_chunksStatus[currentCpuChunk] << ") consumed by CPU Chunk " << currentCpuChunk << "\n";
-
-            currentCpuChunk = (currentCpuChunk + 1) % CHUNKS_CPU;
-            currentGpuChunk = (currentGpuChunk + 1) % CHUNKS_GPU;
-        }
-        else
-            break;
-    }
-
-    for(int i = 0 ; i < CHUNKS_CPU ; i++) {
-        if(manager->h_chunksStatus[i] == 0) {
-            sem_wait(&(manager->chunksEmptySemaphore[i]));
-            manager->h_chunksStatus[i] = -1;
-            sem_post(&(manager->chunksFullSemaphore[i]));
-        }
-    }
-
-    std::cout << "[readGpuBufferFunction] FINISHED!\n";
-}
-
-void* Manager::induceCanonicalizeFunction(Manager* manager, int tid) {
-    // Consume a job, if there's one
-    int myCurrentChunk = tid;
-    double waitTime, induceCanonicalizeTime;
-    unsigned int quick, cg;
-    std::unordered_map<unsigned int,unsigned int> *quickToCgMap = manager->quickToCgMap;
-    std::unordered_map<unsigned int,unsigned long int> *cgCounting = manager->cgCounting[tid];
-
-    while(manager->h_chunksStatus[myCurrentChunk] != -1) {
-        Timer *waitTime = new Timer(), *induceCanonicalizeTime = new Timer();
-        waitTime->play();
-
-        sem_wait(&(manager->chunksFullSemaphore[myCurrentChunk]));
-
-        if(manager->h_chunksStatus[myCurrentChunk] != -1) {
-            memcpy(manager->chunksWorker[tid], manager->h_buffer + myCurrentChunk *CHUNK_SIZE, manager->h_chunksStatus[myCurrentChunk] * sizeof(unsigned int));
-            manager->chunksWorkerSize[tid] = manager->h_chunksStatus[myCurrentChunk];
-            manager->h_chunksStatus[myCurrentChunk] = 0;
-            sem_post(&(manager->chunksEmptySemaphore[myCurrentChunk]));
-
-            waitTime->pause();
-
-            for(int i = 0 ; i < manager->chunksWorkerSize[tid] ; i++) {
-                quick = manager->chunksWorker[tid][i];
-                cg = (*quickToCgMap)[quick];
-
-                if(cgCounting->find(cg) == cgCounting->end())
-                    (*cgCounting)[cg] = 1;
-                else
-                    (*cgCounting)[cg]++;
-            }
-
-            if(manager->chunksWorkerSize[tid] < CHUNK_SIZE) {
-                break;
-            }
-            myCurrentChunk = (myCurrentChunk+manager->numberOfWorkerThreads) % CHUNKS_CPU;
-        }
-
-        delete waitTime;
-        delete induceCanonicalizeTime;
-    }
-
-    long unsigned int total = 0;
-    for(auto it = cgCounting->begin() ; it != cgCounting->end() ; ++it) {
-        // printf("[WORKER] %u -> %lu\n", it->first, it->second);
-        total += it->second;
-    }
-    // printf("[WORKER][%d] total: %ld\n", tid, total);
-    // std::cout << "[WORKER][" << tid << "] exiting...\n";
-}
-
-void Manager::canonicalize(unsigned int *buffer, Graph* mainGraph, std::unordered_map<std::string,int>* patternCounting, int h_k, int numberOfSubgraphs) {
-    printf("[canonicalize][numberOfSubgraphs] %d\n", numberOfSubgraphs);
-
-    std::unordered_map<int,int> relabeling;
-    std::string pattern;
-
-    int m, n;
-    n = h_k;
-    m = SETWORDSNEEDED(n);
-
-    graph g[MAXN*MAXM], cg[MAXN*MAXM];
-    int lab[MAXN],ptn[MAXN],orbits[MAXN];
-    static DEFAULTOPTIONS_GRAPH(options);
-    statsblk stats;
-
-    options.getcanon = TRUE;
-
-    nauty_check(WORDSIZE,m,n,NAUTYVERSIONID);
-
-    for(int i = 0, offset ; i < numberOfSubgraphs ; i++) {
-        EMPTYGRAPH(g,m,n);
-        EMPTYGRAPH(cg,m,n);
-        offset = i * h_k;
-
-        ADDONEEDGE(g,0,1,m);
-        for (int source = 2, offset = 0; source < n; source++, offset+=source) {
-            for(int target = 0 ; target < source ; target++) {
-                if(buffer[offset+target] == 1)
-                    ADDONEEDGE(g,source,target,m);
-            }
-        }
-
-        densenauty(g,lab,ptn,orbits,&options,&stats,m,n,cg);
-
-
-        pattern = generatePattern(cg, m, n);
-
-        if(patternCounting->find(pattern) == patternCounting->end())
-            (*patternCounting)[pattern] = 1;
-        else
-            (*patternCounting)[pattern]++;
-
-        relabeling.clear();
-    }
-}
-
-void Manager::canonicalizeBufferSerial() {
-    Timer* timerC = new Timer();
-    Timer* timerI = new Timer();
-
-    printf("[canonicalizeBufferSerial] Begin\n");
-
-    std::string pattern;
-    std::unordered_map<std::string,int>* patternCounting = new std::unordered_map<std::string,int>();
-
-    int m, n;
-    n = h_k;
-    m = SETWORDSNEEDED(n);
-
-    graph g[MAXN*MAXM], cg[MAXN*MAXM];
-    int lab[MAXN],ptn[MAXN],orbits[MAXN];
-    static DEFAULTOPTIONS_GRAPH(options);
-    statsblk stats;
-
-    options.getcanon = TRUE;
-
-    nauty_check(WORDSIZE,m,n,NAUTYVERSIONID);
-
-    for(int i = 0, offset ; i < result ; i++) {
-        EMPTYGRAPH(g,m,n);
-        EMPTYGRAPH(cg,m,n);
-        offset = i * h_k;
-
-        timerI->play();
-        ADDONEEDGE(g,0,1,m);
-        for(int j = 2 ; j < h_k ; j++) {
-            for(int k = 0 ; k < j ; k++) {
-                if(mainGraph->areNeighbours(h_buffer[offset+k], h_buffer[offset+j])) {
-                    ADDONEEDGE(g,k,j,m);
-                }
-            }
-        }
-        timerI->pause();
-
-        timerC->play();
-        densenauty(g,lab,ptn,orbits,&options,&stats,m,n,cg);
-        timerC->pause();
-
-
-        pattern = generatePattern(cg, m, n);
-
-        if(patternCounting->find(pattern) == patternCounting->end())
-            (*patternCounting)[pattern] = 1;
-        else
-            (*patternCounting)[pattern]++;
-
-    }
-
-    printf("[canonicalizeBufferSerial] End ; %f,%f = %f\n", timerC->getElapsedTimeInMiliseconds(), timerI->getElapsedTimeInMiliseconds(), timerC->getElapsedTimeInMiliseconds()+timerI->getElapsedTimeInMiliseconds());
-
-    delete patternCounting;
-    delete timerC;
-    delete timerI;
-}
-
 void* Manager::reportFunction(Manager* manager) {
-    std::cout << "[ReportFunction] Begin\n";
+    // std::cout << "[ReportFunction] Begin\n";
 
     int *status, *smid, *smOccupancy, *result;
     cudaStream_t stream;
@@ -1004,13 +795,13 @@ void* Manager::reportFunction(Manager* manager) {
                 smOccupancy[smid[tid]]++;
         }
 
-        printf("[REPORT]numberOfWarps:%d,active warps:%d,idle warps:%d,%f%% warps active,", manager->numberOfWarps,manager->numberOfWarps-amountWarpsIdle, amountWarpsIdle, 100-percentageWarpsIdle);
+        // printf("[REPORT]numberOfWarps:%d,active warps:%d,idle warps:%d,%f%% warps active,", manager->numberOfWarps,manager->numberOfWarps-amountWarpsIdle, amountWarpsIdle, 100-percentageWarpsIdle);
         int totalWarps = 0;
         for(int i = 0 ; i < manager->numberOfSMs ; i++) {
-            printf("%d,", smOccupancy[i]);
+            // printf("%d,", smOccupancy[i]);
             totalWarps += smOccupancy[i];
         }
-        printf("%d,%lu,%s",totalWarps,totalResult,std::asctime(std::localtime(&result)));
+        // printf("%d,%lu,%s",totalWarps,totalResult,std::asctime(std::localtime(&result)));
 
         // for(int smId = 0 ; smId < manager->numberOfSMs ; smId++)
         //     std::cout << currentRound << "," << smId << "," << smOccupancy[smId] << "\n";
@@ -1028,7 +819,8 @@ void* Manager::reportFunction(Manager* manager) {
     cudaFreeHost(result);
     cudaStreamDestroy(stream);
 
-    std::cout << "[ReportFunction] End " << "\n";
+    // std::cout << "[ReportFunction] End " << "\n";
+    return NULL;
 }
 
 void Manager::readQuickToCgMap() {
@@ -1167,4 +959,29 @@ unsigned int Manager::generateQuickG(graph* g, int k, int m, int n) {
         }
     }
     return quick;
+}
+
+void Manager::check(int flag) {
+    if(!flag)
+        printf("Status: unchecked.\n");
+    else {
+        unsigned long gt[15];
+        int k;
+
+        std::string groundTruth = graphFile;
+        groundTruth += ".ground_truth";
+        
+        FILE* fp = fopen(groundTruth.c_str(), "r");
+
+        int i = 3;
+        while(fscanf(fp,"%d,%lu", &k, &gt[i]) != EOF) i++;
+
+        fclose(fp);
+
+        if(result == gt[h_k])
+            printf("Status: OK.\n");
+        else
+            printf("Status: FAILED. Expected: %lu. Found: %lu. Difference: %ld.\n", gt[h_k], result, result-gt[h_k]);
+            
+    }
 }

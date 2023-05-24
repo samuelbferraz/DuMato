@@ -22,9 +22,26 @@ class Manager {
         /**************/
         /* Attributes */
         /**************/
+        class Comparator {
+            public: 
+            
+            bool operator()(Donator* s1, Donator* s2) {
+                return s1->weight < s2->weight;    
+            }
+        };        
+
+        // auto sortWeight = [] (Donator* s1, Donator* s2) -> bool
+        // {
+        //     return s1->weight > s2->weight;
+        // };
+        // auto sortCurrentWeight = [] (Donator* s1, Donator* s2) -> bool
+        // {
+        //     return s1->currentWeight > s2->currentWeight;
+        // };
 
         // Graph
         Graph* mainGraph;
+        const char *graphFile;
         int *h_vertexOffset;
         int *h_adjacencyList;
         int *h_degree;
@@ -33,16 +50,19 @@ class Manager {
         int *h_status;
         int *h_smid;
         bool *h_stop;
-        bool h_keepMonitoring;
 
         // Enumeration data structures
-        Embeddings* h_embeddings;
-        Extensions* h_extensions;
+        int *h_id;
+        int *h_numberOfExtensions;
+        int *h_jobs;
+        int *h_inductions;
+        int *h_currentPosOfJob;
+        int *h_validJobs;
+        int *h_currentJob;
+        int *h_extensions;
         int *h_extensionsOffset;
         int *h_currentPos;
-        unsigned int*h_buffer;
-        unsigned long h_bufferSize;
-        int *h_chunksStatus;
+        int h_induce;
         int h_globalVertexId;
         unsigned long* h_result;
         unsigned long result;
@@ -57,6 +77,9 @@ class Manager {
         int h_maxDegree;
         int h_extensionsLength;
         int h_warpSize;
+        int h_initialJobsPerWarp;
+        int h_jobsPerWarp;
+        int h_theoreticalJobsPerWarp;
 
         // Streams
         cudaStream_t main, memory, bufferStream;
@@ -114,7 +137,7 @@ class Manager {
         /* Methods */
         /***********/
 
-        Manager(const char* graphFile, int k, int numberOfActiveThreads, int blockSize, void (*kernel)(Device*), bool getcanon, int numberOfWorkerThreads, int numberOfSMs, int reportInterval, bool canonical_relabeling);
+        Manager(const char* graphFile, int k, int numberOfActiveThreads, int blockSize, void (*kernel)(Device*), int numberOfSMs, int reportInterval, int jobsPerWarp, int induce);
         ~Manager();
 
         void initializeHostDataStructures();
@@ -140,8 +163,9 @@ class Manager {
         bool gpuIsIdle(int threshold);
 
         void detailedIdlenessReport();
-        void shortIdlenessReport();
+        void shortIdlenessReport(const char* message);
         void smOccupancyReport();
+        void queuesReport();
 
 
         void stopKernel();
@@ -149,22 +173,17 @@ class Manager {
         void copyWarpDataFromGpu();
         void copyWarpDataBackToGpu();
         void invalidateResult();
-        void printQueue(std::queue<Donator*> queue);
-        void organizeThreadStatus(std::vector<int>* idles, std::queue<Donator*>* actives, std::vector<int>* indifferents);
-        void donate(std::vector<int>* idles, std::queue<Donator*>* actives);
+        int organizeThreadStatus(std::vector<int>* idles, std::priority_queue<Donator*, std::vector<Donator*>, Comparator>* actives, std::vector<int>* indifferents);
+        bool donate(std::vector<int>* idles, std::priority_queue<Donator*, std::vector<Donator*>, Comparator>* actives, int totalWeight);
         void debug(const char* message);
-        void canonicalizeP();
         void readQuickToCgMap();
         void generateQuickToCgMap();
         unsigned int generateQuickCg(graph* g, int k, int m, int n);
         unsigned int generateQuickG(graph* g, int k, int m, int n);
         void printBinaryLong(graph value);
+        void check(int flag);
 
-        void canonicalizeBufferSerial();
         static std::string generatePattern(graph* g, int m, int n);
-        static void canonicalize(unsigned int *buffer, Graph* mainGraph, std::unordered_map<std::string,int>* patternCounting, int h_k, int numberOfSubgraphs);
-        static void* readGpuBufferFunction(Manager *manager);
-        static void* induceCanonicalizeFunction(Manager* manager, int tid);
         static void* reportFunction(Manager *manager);
 
 };

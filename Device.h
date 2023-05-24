@@ -16,13 +16,17 @@ typedef struct {
 
     // Enumeration data structures
     int *d_id;
+    int *d_jobs;
+    int *d_inductions;
+    int *d_jobsPerWarp;
+    int *d_currentJob;
+    int *d_currentPosOfJob;
+    int *d_validJobs;
     int *d_numberOfExtensions;
     int *d_extensions;
-    // long unsigned int *d_extensionsQuick;
     int *d_extensionSources;
-    int *d_extensionSourcesOffset;
-    int *d_updateCompactionCounters;
     int *d_currentPos;
+    int *d_induce;
     unsigned int *d_buffer;
     unsigned int *d_bufferCounter;
     int *d_chunksStatus;
@@ -32,7 +36,6 @@ typedef struct {
     volatile int *d_globalVertexId;
 
     Embeddings* d_embeddings;
-    Extensions* d_ext;
     unsigned long* d_result;
 
     // Constants
@@ -43,7 +46,7 @@ typedef struct {
     int *d_extensionsLength;
     int *d_warpSize;
     int *d_extensionsOffset;
-    unsigned int *d_quickToCgLocal;
+    long unsigned int *d_quickToCgLocal;
     int *d_numberOfCgs;
 } Device;
 
