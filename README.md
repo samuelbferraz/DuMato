@@ -30,11 +30,11 @@ The flag *compute_capability* is the compute capability of your NVIDIA GPU. For 
 
 ## Datasets
 
-Some datasets are available in the *dataset* directory. Du to lack of space in github, the full set of datasets can be obtained in the following link: YYY
+Some datasets are available in the *dataset* directory. Du to lack of space in github, the full set of datasets can be obtained in the following link: https://drive.google.com/file/d/1mTknrtvpF0OROG5JTsFNcOaIDD9fLb5M/view?usp=sharing
 
 ## Dictionaries
 
-Some dictionaries (needed for canonical relabeling on GPU) are available in the *dictionaries* directory. Due to the lack of space in github, the full set of dictionaries can be obtained in the following link: YYY.
+Some dictionaries (needed for canonical relabeling on GPU) are available in the *dictionaries* directory. Due to the lack of space in github, the full set of dictionaries can be obtained in the following link: https://drive.google.com/file/d/1ZJJzqiLu6mGHuUTEBV9CLmEEhqCC58dD/view?usp=sharing.
 
 ## Executing applications
 Both applications (clique counting and motif counting) require the following arguments for execution:
