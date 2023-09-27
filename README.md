@@ -1,67 +1,87 @@
+
 # DuMato: An Efficient GPU-accelerated Graph Pattern Mining System
 
-*DuMato* is a runtime system with a high-level API that efficiently executes GPM algorithms on GPU.
+DuMato is a runtime system with a high-level API that efficiently executes GPM algorithms on GPU using CUDA/C++. 
 
 ## Requirements
-- CUDA Toolkit >= 10.1
-- gcc 7.5.0
+- CUDA Toolkit >= 10.1 and < 12 (unexpected issues are happening in the latest version of CUDA)
+- $PATH variable pointing to the nvcc compiler
+- gcc >= 7.5.0.
 - GNU Make >= 4.1
-- Nauty canonical relabeling tool (nauty.h and nauty.a, provided in the source)
-
-## Input
-*DuMato* supports undirected graphs and uses the following input format:
-
-src_vertex dst_vertex <br />
-src_vertex dst_vertex <br />
-
-*DuMato* expects vertex ids of a graph G to be in the range [0 .. V(G)-1].
 
 ## Compilation
 
-We provide two examples of application: clique counting (clique_counting.cu) and motif counting (motif_counting.cu).
-
-In order to compile, access the directory and type:
+In order to compile, access the root directory and type:
 
 >make sm=compute_capability
 
-The flag *compute_capability* is the compute capability of your NVIDIA GPU. For example, the compute capability of the GPU used in our experiments is 7.0 and we used the following compilation line:
+The flag compute_capability is the compute capability of your NVIDIA GPU. For example, the compute capability of the GPU used in our experiments is 7.0 and we used the following compilation line:
 
 >make sm=70
 
-## Datasets
+## Input
+DuMato supports undirected graphs without labels and uses the following input format:
 
-Some datasets are available in the *dataset* directory. Du to lack of space in github, the full set of datasets can be obtained in the following link: https://drive.google.com/file/d/1mTknrtvpF0OROG5JTsFNcOaIDD9fLb5M/view?usp=sharing
+src_vertex dst_vertex <br />
+src_vertex dst_vertex <br />
 
-## Dictionaries
+DuMato expects vertex ids of a graph G to be in the range [0 .. V(G)-1].
 
-Some dictionaries (needed for canonical relabeling on GPU) are available in the *dictionaries* directory. Due to the lack of space in github, the full set of dictionaries can be obtained in the following link: https://drive.google.com/file/d/1ZJJzqiLu6mGHuUTEBV9CLmEEhqCC58dD/view?usp=sharing.
+## Directory Tree
 
-## Executing applications
-Both applications (clique counting and motif counting) require the following arguments for execution:
+DuMato directory tree is organized as follows:
 
->./app_name graph_file k number_of_threads block_size number_of_SMs load_balancing_threshold jobs_per_warp
+> src/
+- Source code of all versions of DuMato described in the PhD thesis (available soon), according to the following table:
 
-Where:
-> -app_name: motif_counting or clique_counting. <br />
-> -graph_file: url of graph dataset.<br />
-> -k: size of enumerated subgraphs.<br />
-> -number_of_threads: number of threads to instantiate on GPU.<br />
-> -block_size: block size on GPU.<br/>
-> -number_of_SMS: number of streaming multiprocessor (SM) in the target GPU. Needed for the runtime report.<br />
-> -load_balancing_threshold: the threshold (percentage) of idle threads allowed in the enumeration. After this threshold, the load-balancing layer is invoked.<br />
-> -jobs_per_warp: the size of the job queue per warp.<br />
+|Folder                 |Description
+|-----|--------
+|src/clique_DM_DFS      |Clique counting using DuMato API and standard DFS approach.|
+|src/motifs_DM_DFS      |Motif counting using DuMato API and standard DFS approach.|
+|src/clique_HAND_WC     |Clique counting using warp-centric steps but without DuMato API.|
+|src/motifs_HAND_WC     |Motif counting using warp-centric steps but without DuMato API.          |
+|src/DM_WCV             |Clique/motif counting using DuMato API, DFS-wide, warp-centric workflow with warp virtualization and warp-level load balancing.           |
+|src/main               |Optimized clique/motif counting versions. It uses DuMato API, DFS-wide, warp-centric workflow and warp-level load balancing.
 
-Our experimental evaluation suggests that 102400 threads, blocks with 256 threads, 30\% of load balancing threshold and 16 jobs per warp is a good choice.
+> obj/
+- Object files of the optimized version of DuMato (src/main). The object files of other versions are located in the source folder of the version.
 
-For example, motif counting can be executed using the following command line: <br />
 
-> ./motifs datasets/citeseer.edgelist 5 102400 256 80 30 16
+> exec/ <br />
+- Executable files of all versions of DuMato, as follows:
 
-The command line above would run motif counting to search for motifs with 5 vertices using 409600 threads, blocks with 256 threads, a GPU with 80 SMs, a threshold of 10\% (up to 90\% of threads are allowed to be idle), a runtime report being exhibit every second (1000 ms) and canonical relabeling required on GPU.
+|Executable                 |Description |
+|-|-|
+|clique_DM_DFS          |Clique counting using DuMato API and standard DFS approach.| 
+|clique_HAND_WC         |Clique counting using warp-centric steps but without DuMato API.| 
+|clique_DM_WCV8         |Clique counting using DuMato API, DFS-wide, warp-centric workflow using virtual warps with 8 threads, and warp-level load balancing.           | *dataset* *k*
+|clique_DM_WCV16         |Clique counting using DuMato API, DFS-wide, warp-centric workflow using virtual warps with 16 threads, and warp-level load balancing.
+|clique_DM_WC         |Clique counting using DuMato API, DFS-wide and warp-centric workflow.
+|clique_DM_WCLB         |Clique counting using DuMato API, DFS-wide, warp-centric workflow and warp-level load balancing.
+|motifs_DM_DFS          |Motif counting using DuMato API and standard DFS approach.|
+|motifs_HAND_WC         |Motif counting using warp-centric steps but without DuMato API.          |
+|motifs_DM_WCV8         |Motif counting using DuMato API, DFS-wide, warp-centric workflow using virtual warps with 8 threads, and warp-level load balancing.         |
+|motifs_DM_WCV16         |Motif counting using DuMato API, DFS-wide, warp-centric workflow using virtual warps with 16 threads, and warp-level load balancing. |
+|motifs_DM_WC         |Motif counting using DuMato API, DFS-wide and warp-centric workflow.
+|motifs_DM_WCLB         |Motif counting using DuMato API, DFS-wide, warp-centric workflow and warp-level load balancing.
 
-Clique counting can be executed using the following command line: <br />
+Execute each binary without passing arguments to discover the input parameters.
 
-> ./clique datasets/citeseer.edgelist 5 102400 256 80 30 16
+> datasets/ <br />
+
+The datasets used in the experiments. Due to lack of space in github, the full set of datasets can be obtained in the following link: https://drive.google.com/file/d/1mTknrtvpF0OROG5JTsFNcOaIDD9fLb5M/view?usp=sharing
+
+> dictionaries/ <br />
+
+The dictionaries (csv format) needed for canonical relabeling on GPU. Due to the lack of space in github, the full set of dictionaries can be obtained in the following link: https://drive.google.com/file/d/1ZJJzqiLu6mGHuUTEBV9CLmEEhqCC58dD/view?usp=sharing.
+
+> reproducibility/ <br />
+
+Shell scripts used to reproduce the results of all experiments in the PhD thesis.
+
+> results/ <br />
+
+Folders to store the results produced by the scripts in the *reproducibility* folder.
 
 ## References
 
