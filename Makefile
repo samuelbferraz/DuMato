@@ -89,14 +89,13 @@ clique_DM_DFS:
 	cp $(CLIQUE_DM_DFS_DIR)/clique_DM_DFS $(EXEC_DIR)/
 	cd $(CLIQUE_DM_DFS_DIR) && $(MAKE) clean
 
-
 motifs_DM_DFS:
-	cd $(MOTIFS_DM_DFS_DIR) && $(MAKE) sm=70
+	cd $(MOTIFS_DM_DFS_DIR) && $(MAKE) sm=$(sm)
 	cp $(MOTIFS_DM_DFS_DIR)/motifs_DM_DFS $(EXEC_DIR)/
 	cd $(MOTIFS_DM_DFS_DIR) && $(MAKE) clean
 
 DM_WCV:
-	cd $(DM_WCV_DIR) && $(MAKE) sm=70
+	cd $(DM_WCV_DIR) && $(MAKE) sm=$(sm)
 	cp $(DM_WCV_DIR)/clique_DM_WCV8 $(EXEC_DIR)/
 	cp $(DM_WCV_DIR)/clique_DM_WCV16 $(EXEC_DIR)/
 	cp $(DM_WCV_DIR)/motifs_DM_WCV8 $(EXEC_DIR)/
