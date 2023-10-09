@@ -1,8 +1,6 @@
 *.Thrash-1000*
 *.o
 *.out
-*.txt
-main
 gpm
 clique
 motifs
