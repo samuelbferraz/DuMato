@@ -106,9 +106,3 @@ DM_WCV:
 clean:
 	rm $(OBJECT_DIR)/*.o
 	rm $(EXEC_DIR)/*
-	cd $(MOTIFS_HAND_WC_DIR) && $(MAKE) clean
-	cd $(MOTIFS_DM_DFS_DIR) && $(MAKE) clean
-	cd $(CLIQUE_HAND_WC_DIR) && $(MAKE) clean
-	cd $(CLIQUE_DM_DFS_DIR) && $(MAKE) clean
-	cd $(DM_WCV_DIR) && $(MAKE) clean
-
