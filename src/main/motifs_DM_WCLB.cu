@@ -37,7 +37,7 @@ __global__ void motifs(DataGPU *dataGPU) {
 int main(int argc, const char** argv) {
     printf("Usage: %s graphFile k threads blockSize donationsPerWarp threshold\n", argv[0]);
     printf("\t graphFile: \t\t url of graph dataset\n");
-    printf("\t k: \t\t\t clique size\n");
+    printf("\t k: \t\t\t motifs size\n");
     printf("\t threads: \t\t amount of GPU threads (recommended: 102400)\n");
     printf("\t blockSize: \t\t amount of threads per block (recommended: 256)\n");
     printf("\t donationsPerWarp: \t amount of donations during load-balancing (recommended: 16)\n");
