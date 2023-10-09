@@ -75,18 +75,25 @@ $(EXEC_DIR)/motifs:$(EXEC_DIR)/motifs_DM_WCLB
 motifs_HAND_WC:
 	cd $(MOTIFS_HAND_WC_DIR) && $(MAKE)
 	cp $(MOTIFS_HAND_WC_DIR)/motifs_HAND_WC $(EXEC_DIR)/
+	cd $(MOTIFS_HAND_WC_DIR) && $(MAKE) clean
+
 
 clique_HAND_WC:
 	cd $(CLIQUE_HAND_WC_DIR) && $(MAKE)
 	cp $(CLIQUE_HAND_WC_DIR)/clique_HAND_WC $(EXEC_DIR)/
+	cd $(CLIQUE_HAND_WC_DIR) && $(MAKE) clean
+
 
 clique_DM_DFS:
 	cd $(CLIQUE_DM_DFS_DIR) && $(MAKE)
 	cp $(CLIQUE_DM_DFS_DIR)/clique_DM_DFS $(EXEC_DIR)/
+	cd $(CLIQUE_DM_DFS_DIR) && $(MAKE) clean
+
 
 motifs_DM_DFS:
 	cd $(MOTIFS_DM_DFS_DIR) && $(MAKE) sm=70
 	cp $(MOTIFS_DM_DFS_DIR)/motifs_DM_DFS $(EXEC_DIR)/
+	cd $(MOTIFS_DM_DFS_DIR) && $(MAKE) clean
 
 DM_WCV:
 	cd $(DM_WCV_DIR) && $(MAKE) sm=70
@@ -94,6 +101,7 @@ DM_WCV:
 	cp $(DM_WCV_DIR)/clique_DM_WCV16 $(EXEC_DIR)/
 	cp $(DM_WCV_DIR)/motifs_DM_WCV8 $(EXEC_DIR)/
 	cp $(DM_WCV_DIR)/motifs_DM_WCV16 $(EXEC_DIR)/
+	cd $(DM_WCV_DIR) && $(MAKE) clean
 
 clean:
 	rm $(OBJECT_DIR)/*.o

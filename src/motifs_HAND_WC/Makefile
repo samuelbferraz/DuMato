@@ -24,4 +24,4 @@ motifs_HAND_WC:motifs_HAND_WC.o Manager.o Timer.o Graph.o QuickMapping.o Enumera
 	nvcc $(ALL_CCFLAGS) $(GENCODE_FLAGS) $^ -o $@
 
 clean:
-	rm *.o
+	rm motifs_HAND_WC *.o

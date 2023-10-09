@@ -25,3 +25,4 @@ clique_HAND_WC:clique_HAND_WC.o Manager.o Timer.o Graph.o QuickMapping.o Enumera
 
 clean:
 	rm *.o
+	rm clique_HAND_WC
