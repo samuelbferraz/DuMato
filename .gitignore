@@ -2,6 +2,5 @@
 *.o
 *.out
 gpm
-clique
-motifs
-exec/*
+exec/motifs_*
+exec/clique_*
