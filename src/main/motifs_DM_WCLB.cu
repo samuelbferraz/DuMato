@@ -19,6 +19,7 @@ __global__ void motifs(DataGPU *dataGPU) {
         }
         if(DM_GPU.getCurrentNumberOfExtensions() != 0) {
             if(DM_GPU.last_level()) {
+		// DM_GPU.debug_subgraphs();
                 DM_GPU.aggregate_pattern();
                 DM_GPU.backward_induce();
             }

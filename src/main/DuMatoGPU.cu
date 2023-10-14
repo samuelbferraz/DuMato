@@ -324,6 +324,18 @@ class DuMatoGPU {
                 // __syncwarp();
             }
         }
+	
+	__device__ void debug_subgraphs() {
+		if(variables.lane == 0) {
+			for(int ext = 0 ; ext < getCurrentNumberOfExtensions() ; ext++) {
+				for(int i = 0 ; i <= variables.k ; i++) {
+					printf("[%d]", getId(i));
+				}
+				printf("[%d]\n", getExtension(ext));
+			}
+		}
+		__syncwarp();
+	}
 
         __device__ void aggregate_pattern() {
             unsigned long quickPattern = 0;
