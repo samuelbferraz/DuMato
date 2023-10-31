@@ -33,6 +33,7 @@ typedef struct {
     int *d_currentPosOfJob;
     int *d_validJobs;
     int *d_numberOfExtensions;
+    int *d_numberOfExtensionsFixed;
     int *d_extensions;
     int *d_currentPos;
     int *d_warpSize;            // TODO Migrate to __const__
@@ -66,6 +67,7 @@ typedef struct {
     unsigned long* h_result;
     int *h_id;
     int *h_numberOfExtensions;
+    int *h_numberOfExtensionsFixed;
     int *h_extensions;
     int *h_jobs;
     int *h_currentJob;

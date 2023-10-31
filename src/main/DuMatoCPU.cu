@@ -81,6 +81,7 @@ void DuMatoCPU::initializeCpuDataStructures() {
     dataCPU->h_jobs = new int[dataCPU->h_numberOfWarps * dataCPU->h_theoreticalJobsPerWarp * dataCPU->h_warpSize];
     dataCPU->h_id = new int[dataCPU->h_numberOfWarps * dataCPU->h_warpSize];
     dataCPU->h_numberOfExtensions = new int[dataCPU->h_numberOfWarps * dataCPU->h_warpSize];
+    dataCPU->h_numberOfExtensionsFixed = new int[dataCPU->h_numberOfWarps * dataCPU->h_warpSize];
     dataCPU->h_extensions = new int[dataCPU->h_numberOfWarps * dataCPU->h_extensionsLength];
 
     for(int i = 0 ; i < dataCPU->h_numberOfWarps ; i++) {
@@ -149,6 +150,7 @@ void DuMatoCPU::releaseCpuDataStructures() {
     // delete[] dataCPU->h_id;
     // delete[] dataCPU->h_extensions;
     // delete[] dataCPU->h_numberOfExtensions;
+    // delete[] dataCPU->h_numberOfExtensionsFixed;
     cudaFreeHost(dataCPU->h_stop);
     cudaFreeHost(dataCPU->h_status);
     
@@ -187,6 +189,7 @@ void DuMatoCPU::initializeGpuDataStructures() {
     gpuErrorCheck(cudaMalloc((void**)&(dataGPU->d_currentPosOfJob), dataCPU->h_numberOfWarps * dataCPU->h_theoreticalJobsPerWarp * sizeof(int)));
     gpuErrorCheck(cudaMalloc((void**)&(dataGPU->d_validJobs), dataCPU->h_numberOfWarps * sizeof(int)));
     gpuErrorCheck(cudaMalloc((void**)&(dataGPU->d_numberOfExtensions), dataCPU->h_numberOfWarps * dataCPU->h_warpSize * sizeof(int)));
+    gpuErrorCheck(cudaMalloc((void**)&(dataGPU->d_numberOfExtensionsFixed), dataCPU->h_numberOfWarps * dataCPU->h_warpSize * sizeof(int)));
     gpuErrorCheck(cudaMalloc((void**)&(dataGPU->d_extensions), dataCPU->h_numberOfWarps * dataCPU->h_extensionsLength * sizeof(int)));
     gpuErrorCheck(cudaMalloc((void**)&(dataGPU->d_currentPos), dataCPU->h_numberOfWarps * sizeof(int)));
     gpuErrorCheck(cudaMalloc((void**)&(dataGPU->d_result), dataCPU->h_numberOfWarps * sizeof(unsigned long)));
@@ -251,6 +254,7 @@ void DuMatoCPU::releaseGpuDataStructures() {
     cudaFree(dataGPU->d_currentPosOfJob); 
     cudaFree(dataGPU->d_validJobs);
     cudaFree(dataGPU->d_numberOfExtensions);
+    cudaFree(dataGPU->d_numberOfExtensionsFixed);
     cudaFree(dataGPU->d_extensions); 
     cudaFree(dataGPU->d_currentPos); 
     cudaFree(dataGPU->d_result);
@@ -294,6 +298,7 @@ void DuMatoCPU::copyWarpDataFromGpu() {
     gpuErrorCheck(cudaMemcpy(dataCPU->h_currentPosOfJob, dataGPU->d_currentPosOfJob, dataCPU->h_numberOfWarps * dataCPU->h_theoreticalJobsPerWarp * sizeof(int), cudaMemcpyDeviceToHost));
     gpuErrorCheck(cudaMemcpy(dataCPU->h_validJobs, dataGPU->d_validJobs, dataCPU->h_numberOfWarps * sizeof(int), cudaMemcpyDeviceToHost));
     gpuErrorCheck(cudaMemcpy(dataCPU->h_numberOfExtensions, dataGPU->d_numberOfExtensions, dataCPU->h_numberOfWarps * dataCPU->h_warpSize * sizeof(int), cudaMemcpyDeviceToHost));
+    gpuErrorCheck(cudaMemcpy(dataCPU->h_numberOfExtensionsFixed, dataGPU->d_numberOfExtensionsFixed, dataCPU->h_numberOfWarps * dataCPU->h_warpSize * sizeof(int), cudaMemcpyDeviceToHost));
     gpuErrorCheck(cudaMemcpy(dataCPU->h_currentPos, dataGPU->d_currentPos, dataCPU->h_numberOfWarps * sizeof(int), cudaMemcpyDeviceToHost));
     gpuErrorCheck(cudaMemcpy(dataCPU->h_extensions, dataGPU->d_extensions, dataCPU->h_numberOfWarps * dataCPU->h_extensionsLength * sizeof(int), cudaMemcpyDeviceToHost));
     gpuErrorCheck(cudaMemcpy(dataCPU->h_status, dataGPU->d_status, dataCPU->h_numberOfWarps*sizeof(int), cudaMemcpyDeviceToHost));
@@ -309,6 +314,7 @@ void DuMatoCPU::copyWarpDataBackToGpu() {
     gpuErrorCheck(cudaMemcpy(dataGPU->d_currentPosOfJob, dataCPU->h_currentPosOfJob, dataCPU->h_numberOfWarps * dataCPU->h_theoreticalJobsPerWarp * sizeof(int), cudaMemcpyHostToDevice));
     gpuErrorCheck(cudaMemcpy(dataGPU->d_validJobs, dataCPU->h_validJobs, dataCPU->h_numberOfWarps * sizeof(int), cudaMemcpyHostToDevice));
     gpuErrorCheck(cudaMemcpy(dataGPU->d_numberOfExtensions, dataCPU->h_numberOfExtensions, dataCPU->h_numberOfWarps * dataCPU->h_warpSize * sizeof(int), cudaMemcpyHostToDevice));
+    gpuErrorCheck(cudaMemcpy(dataGPU->d_numberOfExtensionsFixed, dataCPU->h_numberOfExtensionsFixed, dataCPU->h_numberOfWarps * dataCPU->h_warpSize * sizeof(int), cudaMemcpyHostToDevice));
     gpuErrorCheck(cudaMemcpy(dataGPU->d_extensions, dataCPU->h_extensions, dataCPU->h_numberOfWarps * dataCPU->h_extensionsLength * sizeof(int), cudaMemcpyHostToDevice));
     gpuErrorCheck(cudaMemcpy(dataGPU->d_currentPos, dataCPU->h_currentPos, dataCPU->h_numberOfWarps * sizeof(int), cudaMemcpyHostToDevice));
     if(dataCPU->h_relabeling) {

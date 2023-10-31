@@ -137,6 +137,10 @@ class DuMatoGPU {
             
             return totalActives;
         }
+        
+        __device__ void intersect(int *src, int *dst) {
+
+        }
 
         __device__ int getId(int targetK) {
             return dataGPU->d_id[variables.offsetWarp+targetK];
@@ -163,6 +167,11 @@ class DuMatoGPU {
 
         __device__ int* getExtensionsArray() {
             int localOffsetExtensions = variables.offsetExtensions + dataGPU->d_extensionsOffset[variables.k];
+            return dataGPU->d_extensions + localOffsetExtensions;
+        }
+
+        __device__ int* getExtensionsArray(int k) {
+            int localOffsetExtensions = variables.offsetExtensions + dataGPU->d_extensionsOffset[k];
             return dataGPU->d_extensions + localOffsetExtensions;
         }
 
@@ -226,6 +235,7 @@ class DuMatoGPU {
                 dataGPU->d_numberOfExtensions[variables.offsetWarp+variables.k] = -1;
                 dataGPU->d_currentJob[variables.wid]++;
                 dataGPU->d_status[variables.wid] = 1;
+                prepare_job_clique();
             }
         }
 
@@ -426,6 +436,70 @@ class DuMatoGPU {
             setCurrentNumberOfExtensions(currentExtensionsSize);
         }
 
+        __device__ void prepare_job_clique() {
+            int k = variables.k;
+            for(int i = 0 ; i < k ; i++) {
+                variables.k = i;
+                extend_clique_prepare();
+            }
+            variables.k = k;
+        }
+
+        __device__ void extend_clique() {
+            bool validExtension = false;
+            int currentExtensionsSize = 0, last = getId(variables.k);
+            int currentVertexDegree = degree(last);
+            int *previousExtensions, previousExtensionsAmount;
+            if(variables.k > 0) {
+                previousExtensions = getExtensionsArray(variables.k-1);
+                previousExtensionsAmount = getCurrentNumberOfExtensionsFixed(variables.k-1);
+            }
+            
+            for(int warpPosition = variables.lane, currentNeighbour ; warpPosition < roundToWarpSize(currentVertexDegree) ; warpPosition += 32) {
+                currentNeighbour = neighbour(last, warpPosition);
+                currentNeighbour = warpPosition < currentVertexDegree && currentNeighbour > last ? currentNeighbour : -1;
+                validExtension = currentNeighbour != -1 ? true : false;
+                
+                if(variables.k > 0) {
+                    int found = findMany(previousExtensions, previousExtensionsAmount, currentNeighbour);
+                    // if(variables.k == 1 && getId(0) == 0) {
+                    //     printf("previousExtensionsAmount: %d, %d,%d -> %d (degree %d), found: %d\n", previousExtensionsAmount, getId(0), getId(1), currentNeighbour, currentVertexDegree, found);
+                    // }
+                    validExtension = found == 1 ? true : false;
+                }
+                currentExtensionsSize += write(getExtensionsArray(), currentExtensionsSize, currentNeighbour, validExtension);
+            }
+            setCurrentNumberOfExtensions(currentExtensionsSize);
+            setCurrentNumberOfExtensionsFixed(currentExtensionsSize);
+        }
+
+        __device__ void extend_clique_prepare() {
+            bool validExtension = false;
+            int currentExtensionsSize = 0, last = getId(variables.k);
+            int currentVertexDegree = degree(last);
+            int *previousExtensions, previousExtensionsAmount;
+            if(variables.k > 0) {
+                previousExtensions = getExtensionsArray(variables.k-1);
+                previousExtensionsAmount = getCurrentNumberOfExtensionsFixed(variables.k-1);
+            }
+            
+            for(int warpPosition = variables.lane, currentNeighbour ; warpPosition < roundToWarpSize(currentVertexDegree) ; warpPosition += 32) {
+                currentNeighbour = neighbour(last, warpPosition);
+                currentNeighbour = warpPosition < currentVertexDegree && currentNeighbour > last ? currentNeighbour : -1;
+                validExtension = currentNeighbour != -1 ? true : false;
+                
+                if(variables.k > 0) {
+                    int found = findMany(previousExtensions, previousExtensionsAmount, currentNeighbour);
+                    // if(variables.k == 1 && getId(0) == 0) {
+                    //     printf("previousExtensionsAmount: %d, %d,%d -> %d (degree %d), found: %d\n", previousExtensionsAmount, getId(0), getId(1), currentNeighbour, currentVertexDegree, found);
+                    // }
+                    validExtension = found == 1 ? true : false;
+                }
+                currentExtensionsSize += write(getExtensionsArray(), currentExtensionsSize, currentNeighbour, validExtension);
+            }
+            setCurrentNumberOfExtensionsFixed(currentExtensionsSize);
+        }
+
         __device__ void extend(int begin, int end) {
             int v0 = getId(begin);
             int currentOffsetExtensions = 0;
@@ -451,8 +525,20 @@ class DuMatoGPU {
             return dataGPU->d_numberOfExtensions[variables.offsetWarp+variables.k];
         }
 
+        __device__ int getCurrentNumberOfExtensions(int k) {
+            return dataGPU->d_numberOfExtensions[variables.offsetWarp+k];
+        }
+
+        __device__ int getCurrentNumberOfExtensionsFixed(int k) {
+            return dataGPU->d_numberOfExtensionsFixed[variables.offsetWarp+k];
+        }
+
         __device__ void setCurrentNumberOfExtensions(int value) {
             dataGPU->d_numberOfExtensions[variables.offsetWarp+variables.k] = value;
+        }
+
+        __device__ void setCurrentNumberOfExtensionsFixed(int value) {
+            dataGPU->d_numberOfExtensionsFixed[variables.offsetWarp+variables.k] = value;
         }
 
         __device__ void filterClique() {
