@@ -198,4 +198,4 @@ DM_WCV:
 
 clean:
 	rm $(OBJECT_DIR)/*.o
-	rm $(EXEC_DIR)/*
+	rm $(EXEC_DIR)/clique* $(EXEC_DIR)/q* $(EXEC_DIR)/*motifs* 
