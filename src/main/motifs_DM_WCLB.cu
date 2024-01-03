@@ -19,7 +19,7 @@ __global__ void motifs(DataGPU *dataGPU) {
         }
         if(DM_GPU.getCurrentNumberOfExtensions() != 0) {
             if(DM_GPU.last_level()) {
-		// DM_GPU.debug_subgraphs();
+		        // DM_GPU.debug_subgraphs();
                 DM_GPU.aggregate_pattern();
                 DM_GPU.backward_induce();
             }
@@ -64,6 +64,7 @@ int main(int argc, const char** argv) {
     int globalThreshold = atoi(argv[6]);
     int validateResults = 0;
     bool relabeling = true;
+    bool patternAware = false;
     int rep = 0;
     /*************************************************/
 
@@ -71,7 +72,7 @@ int main(int argc, const char** argv) {
     Timer timerLB;
 
     timerIO.play();
-    DuMatoCPU *DM_CPU = new DuMatoCPU(datasetName, k, numberOfActiveThreads, blockSize, numberOfSMs, jobsPerWarp, motifs, globalThreshold, relabeling);
+    DuMatoCPU *DM_CPU = new DuMatoCPU(datasetName, k, numberOfActiveThreads, blockSize, numberOfSMs, jobsPerWarp, motifs, globalThreshold, relabeling, patternAware);
     cudaDeviceSynchronize();
     timerIO.pause();
 

@@ -10,7 +10,7 @@
 
 using namespace std;
 
-DuMatoCPU::DuMatoCPU(const char *datasetName, int k, int numberOfActiveThreads, int blockSize, int numberOfSMs, int jobsPerWarp, void (*kernel)(DataGPU*), int globalThreshold, bool relabeling) {
+DuMatoCPU::DuMatoCPU(const char *datasetName, int k, int numberOfActiveThreads, int blockSize, int numberOfSMs, int jobsPerWarp, void (*kernel)(DataGPU*), int globalThreshold, bool relabeling, bool patternAware) {
     this->datasetName = datasetName;
     graphReader = new Graph(datasetName);
     dataCPU = new DataCPU;
@@ -23,6 +23,25 @@ DuMatoCPU::DuMatoCPU(const char *datasetName, int k, int numberOfActiveThreads, 
     dataCPU->h_relabeling = relabeling;
     dataGPU = new DataGPU;
     this->kernel = kernel;
+    this->patternAware = patternAware;
+
+    initializeCpuDataStructures();
+    initializeGpuDataStructures();
+}
+
+DuMatoCPU::DuMatoCPU(Graph* graphReader, int k, int numberOfActiveThreads, int blockSize, int numberOfSMs, int jobsPerWarp, void (*kernel)(DataGPU*), int globalThreshold, bool relabeling, bool patternAware) {
+    this->graphReader = graphReader;
+    dataCPU = new DataCPU;
+    dataCPU->h_k = k;
+    dataCPU->h_numberOfActiveThreads = numberOfActiveThreads;
+    dataCPU->h_blockSize = blockSize;
+    dataCPU->h_numberOfSMs = numberOfSMs;
+    dataCPU->h_jobsPerWarp = jobsPerWarp;
+    dataCPU->h_globalThreshold = globalThreshold;
+    dataCPU->h_relabeling = relabeling;
+    dataGPU = new DataGPU;
+    this->kernel = kernel;
+    this->patternAware = patternAware;
 
     initializeCpuDataStructures();
     initializeGpuDataStructures();
@@ -47,12 +66,27 @@ void DuMatoCPU::initializeCpuDataStructures() {
     dataCPU->h_extensionsLength = 0;
     dataCPU->h_extensionsOffset = new int[dataCPU->h_k];
     dataCPU->h_extensionsOffset[0] = 0;
-    for(int k = 1, length ; k <= dataCPU->h_k - 1 ; k++) {
-        length = (int)ceilf(pow(2, ceilf(log2((float)(k * dataCPU->h_maxDegreeRounded)))));
-        dataCPU->h_extensionsLength += length;
-        if(k < dataCPU->h_k - 1)
-            dataCPU->h_extensionsOffset[k] = dataCPU->h_extensionsLength;
+
+    if(patternAware) {
+        // Pattern-aware
+        for(int k = 1, length ; k <= dataCPU->h_k - 1 ; k++) {
+            length = (int)ceilf(pow(2, ceilf(log2((float)(1 * dataCPU->h_maxDegreeRounded)))));
+            dataCPU->h_extensionsLength += length;
+            if(k < dataCPU->h_k - 1)
+                dataCPU->h_extensionsOffset[k] = dataCPU->h_extensionsLength;
+        }
     }
+    else {
+        // Pattern-oblivious
+        for(int k = 1, length ; k <= dataCPU->h_k - 1 ; k++) {
+            length = (int)ceilf(pow(2, ceilf(log2((float)(k * dataCPU->h_maxDegreeRounded)))));
+            dataCPU->h_extensionsLength += length;
+            if(k < dataCPU->h_k - 1)
+                dataCPU->h_extensionsOffset[k] = dataCPU->h_extensionsLength;
+        }
+    }
+    
+    
     /******************************************************************************************************/
 
     /******************************************************************************************************/
@@ -628,6 +662,10 @@ void DuMatoCPU::validateAggregatePattern() {
     }
     
     fp.close();
+}
+
+Graph* DuMatoCPU::getGraphReader() {
+    return graphReader;
 }
 
 DuMatoCPU::~DuMatoCPU() {

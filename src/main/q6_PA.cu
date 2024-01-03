@@ -6,25 +6,25 @@
 #include "Report.h"
 #include <cuda_runtime.h>
 
-__global__ void clique(DataGPU *dataGPU) {
+__global__ void q6_PA(DataGPU *dataGPU) {
     DuMatoGPU DM_GPU;
-    DM_GPU.start_clique(dataGPU);
+    DM_GPU.start_q6(dataGPU);
 
     while(DM_GPU.active() && DM_GPU.balanced()) {
         if(DM_GPU.getCurrentNumberOfExtensions() == -1) {
-            DM_GPU.extend_clique();
+            DM_GPU.extend_q6();
         }
         if(DM_GPU.getCurrentNumberOfExtensions() != 0) {
             if(DM_GPU.last_level()) {
                 DM_GPU.aggregate_counter();
-                DM_GPU.backward_clique();
+                DM_GPU.backward_q6();
             }
             else {
                 DM_GPU.forward();
             }
         }
         else {
-            DM_GPU.backward_clique();
+            DM_GPU.backward_q6();
         }
     }
 
@@ -67,7 +67,7 @@ int main(int argc, const char** argv) {
     double timeLB = 0;
 
     timerIO.play("IO");
-    DuMatoCPU *DM_CPU = new DuMatoCPU(datasetName, k, numberOfActiveThreads, blockSize, numberOfSMs, jobsPerWarp, clique, globalThreshold, relabeling, patternAware);
+    DuMatoCPU *DM_CPU = new DuMatoCPU(datasetName, k, numberOfActiveThreads, blockSize, numberOfSMs, jobsPerWarp, q6_PA, globalThreshold, relabeling, patternAware);
     Report* report;
     if(rep)
         report = new Report(DM_CPU, 100);

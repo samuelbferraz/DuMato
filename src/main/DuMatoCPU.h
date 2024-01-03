@@ -32,6 +32,7 @@ class DuMatoCPU {
         DataCPU *dataCPU;
         QuickMapping *quickMapping;
         bool relabeling;
+        bool patternAware;
         /***********************************/
 
         /************************************/
@@ -42,7 +43,8 @@ class DuMatoCPU {
         cudaStream_t main, memory;
         /***********************************/
 
-        DuMatoCPU(const char *datasetName, int k, int numberOfActiveThreads, int blockSize, int numberOfSMs, int jobsPerWarp, void (*kernel)(DataGPU*), int globalThreshold, bool relabeling);
+        DuMatoCPU(const char *datasetName, int k, int numberOfActiveThreads, int blockSize, int numberOfSMs, int jobsPerWarp, void (*kernel)(DataGPU*), int globalThreshold, bool relabeling, bool patternAware);
+        DuMatoCPU(Graph *graphReader, int k, int numberOfActiveThreads, int blockSize, int numberOfSMs, int jobsPerWarp, void (*kernel)(DataGPU*), int globalThreshold, bool relabeling, bool patternAware);
         void runKernel();
         void waitKernel();
         void copyWarpDataBackToGpu();
@@ -60,6 +62,7 @@ class DuMatoCPU {
         void validateAggregateCounter();
         void validateAggregatePattern();
         bool rebalance();
+        Graph *getGraphReader();
         ~DuMatoCPU();
     
     private:
