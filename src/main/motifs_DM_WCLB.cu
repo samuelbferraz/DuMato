@@ -65,7 +65,7 @@ int main(int argc, const char** argv) {
     int validateResults = 0;
     bool relabeling = true;
     bool patternAware = false;
-    int rep = 0;
+    int rep = 1;
     /*************************************************/
 
     Timer timerIO;
