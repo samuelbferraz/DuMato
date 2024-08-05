@@ -10,7 +10,7 @@ DM_WCV_DIR := src/DM_WCV
 EXEC_DIR := exec
 
 # all:build motifs_HAND_WC motifs_DM_DFS clique_HAND_WC clique_DM_DFS DM_WCV
-all:build
+all:build motifs_DM_DFS
 
 # build:$(EXEC_DIR)/clique_DM_WC $(EXEC_DIR)/clique_DM_WCLB $(EXEC_DIR)/clique_PA $(EXEC_DIR)/chordal_4_EI $(EXEC_DIR)/clique $(EXEC_DIR)/motifs_DM_WC $(EXEC_DIR)/motifs_DM_WCLB $(EXEC_DIR)/motifs
 # build:$(EXEC_DIR)/clique_DM_WCLB $(EXEC_DIR)/clique_PA $(EXEC_DIR)/chordal_4_EI $(EXEC_DIR)/motifs_DM_WCLB $(EXEC_DIR)/motifs
