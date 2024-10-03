@@ -27,7 +27,7 @@ class DuMatoGPU {
             
             dataGPU->d_result[variables.wid] = 0;
             dataGPU->d_status[variables.wid] = 1;
-            //dataGPU->d_smid[variables.wid] = __mysmid();
+            dataGPU->d_smid[variables.wid] = __mysmid();
             variables.k = dataGPU->d_currentPos[variables.wid];                                              
             popJob_clique();
         }
@@ -43,7 +43,7 @@ class DuMatoGPU {
             
             dataGPU->d_result[variables.wid] = 0;
             dataGPU->d_status[variables.wid] = 1;
-            //dataGPU->d_smid[variables.wid] = __mysmid();
+            dataGPU->d_smid[variables.wid] = __mysmid();
             variables.k = dataGPU->d_currentPos[variables.wid];                                              
             popJob_q4();
         }
