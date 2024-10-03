@@ -60,7 +60,7 @@ int main(int argc, const char** argv) {
     int globalThreshold = atoi(argv[6]);
     bool relabeling = false;
     bool patternAware = true;
-    int rep = 0;
+    int rep = 1;
     /*************************************************/
 
     Timer timerIO;
