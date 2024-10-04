@@ -473,7 +473,7 @@ void Manager::printResult() {
     // }
     // canonicalizeBufferSerial();
 
-    printf("(%lu,%lu)\n", result, validSubgraphs);
+    printf("%lu subgraphs.\n", result);
     // for(int i = 0 ; i < h_bufferCounter ; i++) {
     //     for(int k = 0 ; k < h_k ; k++) {
     //         printf("%d ", h_buffer[i*h_k + k]);
