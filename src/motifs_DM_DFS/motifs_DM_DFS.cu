@@ -35,7 +35,7 @@ int main(int argc, const char** argv)
     manager->copyResult();
 
     manager->printResult();
-    printf("Time: %.2f seconds\n", manager->getRuntimeInSeconds());
+    printf("%.2f seconds.\n", manager->getRuntimeInSeconds());
 
     delete(manager);
 
