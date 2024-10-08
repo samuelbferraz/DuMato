@@ -125,10 +125,11 @@ int main(int argc, const char** argv) {
     if(validateResults) { 
         DM_CPU->validateAggregatePattern();
     }
-    printf("Time (GPU): %f secs.\n", timerGPU.getElapsedTimeInSeconds());
-    printf("Time (LB): %f secs.\n", timerLB.getElapsedTimeInSeconds());
-    printf("Time (IO): %f secs\n", timerIO.getElapsedTimeInSeconds());
-    printf("Time (TOTAL): %f secs\n", timerTOTAL.getElapsedTimeInSeconds());
+    printf("%.2f seconds.\n", timerGPU.getElapsedTimeInSeconds());
+    // printf("Time (GPU): %f secs.\n", timerGPU.getElapsedTimeInSeconds());
+    // printf("Time (LB): %f secs.\n", timerLB.getElapsedTimeInSeconds());
+    // printf("Time (IO): %f secs\n", timerIO.getElapsedTimeInSeconds());
+    // printf("Time (TOTAL): %f secs\n", timerTOTAL.getElapsedTimeInSeconds());
     /*************************************************/
     /************** Memory release *******************/
     delete DM_CPU;

@@ -358,7 +358,8 @@ void DuMatoCPU::copyWarpDataBackToGpu() {
 }
 
 void DuMatoCPU::outputAggregateCounter() {
-    printf("Result: %lu.\n", dataCPU->h_resultCounter);
+    // printf("Result: %lu.\n", dataCPU->h_resultCounter);
+    printf("%lu subgraphs.\n", dataCPU->h_resultCounter);
 }
 
 void DuMatoCPU::outputAggregatePattern() {
