@@ -10,12 +10,12 @@ DM_WCV_DIR := src/DM_WCV
 EXEC_DIR := exec
 
 # all:build motifs_HAND_WC motifs_DM_DFS clique_HAND_WC clique_DM_DFS DM_WCV
-all:build motifs_DM_DFS motifs_HAND_WC
+all:build motifs_DM_DFS clique_DM_DFS
 
 # build:$(EXEC_DIR)/clique_DM_WC $(EXEC_DIR)/clique_DM_WCLB $(EXEC_DIR)/clique_PA $(EXEC_DIR)/chordal_4_EI $(EXEC_DIR)/clique $(EXEC_DIR)/motifs_DM_WC $(EXEC_DIR)/motifs_DM_WCLB $(EXEC_DIR)/motifs
 # build:$(EXEC_DIR)/clique_DM_WCLB $(EXEC_DIR)/clique_PA $(EXEC_DIR)/chordal_4_EI $(EXEC_DIR)/motifs_DM_WCLB $(EXEC_DIR)/motifs
 # build:$(EXEC_DIR)/clique_PA $(EXEC_DIR)/q4_PA $(EXEC_DIR)/motifs
-build:$(EXEC_DIR)/motifs_DM_WCLB $(EXEC_DIR)/motifs $(EXEC_DIR)/clique_PA $(EXEC_DIR)/q4_PA $(EXEC_DIR)/q5_PA $(EXEC_DIR)/q6_PA $(EXEC_DIR)/q7_PA $(EXEC_DIR)/q8_PA $(EXEC_DIR)/q9_PA $(EXEC_DIR)/q10_PA $(EXEC_DIR)/q11_PA $(EXEC_DIR)/q12_PA $(EXEC_DIR)/q13_PA
+build:$(EXEC_DIR)/motifs_DM_WCLB $(EXEC_DIR)/motifs $(EXEC_DIR)/clique_PA
 
 $(OBJECT_DIR)/clique_DM_WC.o:$(MAIN_SRC_DIR)/clique_DM_WC.cu $(MAIN_SRC_DIR)/DuMato.h $(MAIN_SRC_DIR)/Structs.cu $(MAIN_SRC_DIR)/DuMatoCPU.h $(MAIN_SRC_DIR)/DuMatoGPU.cu $(MAIN_SRC_DIR)/Timer.h $(MAIN_SRC_DIR)/Report.h
 	nvcc $(ALL_CCFLAGS) $(GENCODE_FLAGS) -c $<

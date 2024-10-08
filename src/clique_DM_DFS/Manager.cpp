@@ -246,7 +246,8 @@ void Manager::copyResult() {
 }
 
 void Manager::printResult() {
-    printf("%lu\n", result);
+    // printf("%lu\n", result);
+    printf("%lu subgraphs.\n", result);
 }
 
 void Manager::loadGpuThreadStatus() {

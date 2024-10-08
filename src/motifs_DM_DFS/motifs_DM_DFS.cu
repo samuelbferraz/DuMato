@@ -28,7 +28,7 @@ int main(int argc, const char** argv)
 
     printf("Usage: ./motifs_DM_DFS graphFile k threads blockSize\n");
     printf("\t graphFile: \t %s\n", graphFile);
-    printf("\t subgraph size (k): \t %d\n", k);
+    printf("\t k: \t\t %d\n", k);
     printf("\t #threads: \t %d\n", numberOfActiveThreads);
     printf("\t blockSize: \t %d\n", blockSize);
 
@@ -39,7 +39,6 @@ int main(int argc, const char** argv)
     manager->waitKernel();
     manager->stopTimer();
     manager->copyResult();
-
     manager->printResult();
     printf("%.2f seconds.\n", manager->getRuntimeInSeconds());
 

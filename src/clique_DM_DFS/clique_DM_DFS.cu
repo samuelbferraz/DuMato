@@ -7,12 +7,12 @@ __global__ void clique(Device*);
 
 int main(int argc, const char** argv)
 {
-    printf("Usage: ./clique_DM_DFS graphFile k threads blockSize\n");
-    printf("\t graphFile: \t url of graph dataset\n");
-    printf("\t k: \t\t clique size\n");
-    printf("\t threads: \t amount of GPU threads (recommended: 102400)\n");
-    printf("\t blockSize: \t amount of threads per block (recommended: 256)\n");
     if(argc != 5) {
+        printf("Usage: ./clique_DM_DFS graphFile k threads blockSize\n");
+        printf("\t graphFile: \t url of graph dataset\n");
+        printf("\t k: \t\t clique size\n");
+        printf("\t threads: \t amount of GPU threads (recommended: 102400)\n");
+        printf("\t blockSize: \t amount of threads per block (recommended: 256)\n");
         printf("\nWrong amount of parameters!\n");
         printf("Exiting...\n");
         exit(1);
@@ -23,8 +23,13 @@ int main(int argc, const char** argv)
     int numberOfActiveThreads = atoi(argv[3]);
     int blockSize = atoi(argv[4]);
 
-    Manager* manager = new Manager(graphFile, k, numberOfActiveThreads, blockSize, clique);
+    printf("Usage: ./clique_DM_DFS graphFile k threads blockSize\n");
+    printf("\t graphFile: \t %s\n", graphFile);
+    printf("\t k: \t\t %d\n", k);
+    printf("\t #threads: \t %d\n", numberOfActiveThreads);
+    printf("\t blockSize: \t %d\n", blockSize);
 
+    Manager* manager = new Manager(graphFile, k, numberOfActiveThreads, blockSize, clique);
 
     manager->startTimer();
     manager->runKernel();
@@ -32,7 +37,7 @@ int main(int argc, const char** argv)
     manager->stopTimer();
     manager->copyResult();
     manager->printResult();
-    printf("%f\n", manager->getRuntimeInSeconds());
+    printf("%.2f seconds.\n", manager->getRuntimeInSeconds());
 
     delete(manager);
 
