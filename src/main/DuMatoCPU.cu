@@ -358,8 +358,7 @@ void DuMatoCPU::copyWarpDataBackToGpu() {
 }
 
 void DuMatoCPU::outputAggregateCounter() {
-    // printf("Result: %lu.\n", dataCPU->h_resultCounter);
-    printf("%lu subgraphs.\n", dataCPU->h_resultCounter);
+    printf("Result: %lu.\n", dataCPU->h_resultCounter);
 }
 
 void DuMatoCPU::outputAggregatePattern() {
@@ -380,7 +379,8 @@ void DuMatoCPU::outputAggregatePattern() {
                 validSubgraphs += dataCPU->h_hashGlobal[i];
             }
         }
-        printf("Aggregated: %lu, %u patterns.\n", validSubgraphs, counter);
+        // printf("Aggregated: %lu, %u patterns.\n", validSubgraphs, counter);
+        printf("%lu subgraphs.\n", validSubgraphs);
     }
 }
 

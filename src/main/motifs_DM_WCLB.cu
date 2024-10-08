@@ -119,8 +119,8 @@ int main(int argc, const char** argv) {
         timerGPU.pause("Kernel");
     }
 
-    // DM_CPU->outputAggregatePattern();
-    DM_CPU->outputAggregateCounter();
+    DM_CPU->outputAggregatePattern();
+    // DM_CPU->outputAggregateCounter();
     timerTOTAL.pause();
 
     if(validateResults) { 
