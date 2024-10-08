@@ -11,7 +11,7 @@ using namespace std;
 Manager::Manager(const char* graphFile, int k, int numberOfActiveThreads, int blockSize, void (*kernel)(Device*)) {
     this->graph = new Graph(graphFile);
 
-    cout << graph->getMaxDegree() << "\n";
+    // cout << graph->getMaxDegree() << "\n";
 
     this->h_numberOfActiveThreads = numberOfActiveThreads;
     this->h_k = k;
