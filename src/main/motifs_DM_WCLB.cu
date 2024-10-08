@@ -43,7 +43,7 @@ int main(int argc, const char** argv) {
     printf("\t blockSize: \t\t amount of threads per block (recommended: 256)\n");
     printf("\t donationsPerWarp: \t amount of donations during load-balancing (recommended: 16)\n");
     printf("\t threshold: \t\t load-balancing threshold (recommended: 30)\n");
-    printf("\t report: \t\t 0 (no) or 1 (yes)");
+    printf("\t report: \t\t 0 (no) or 1 (yes)\n");
 
     if(argc != 8) {
         printf("\nWrong amount of parameters!\n");
