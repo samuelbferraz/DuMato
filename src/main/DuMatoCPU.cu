@@ -376,7 +376,7 @@ void DuMatoCPU::outputAggregatePattern() {
         for(int i = 0 ; i < quickMapping->numberOfCgs ; i++) {
             if(dataCPU->h_hashGlobal[i] > 0) {
                 counter++;
-                printf("%d, %lu\n", i, dataCPU->h_hashGlobal[i]);
+                // printf("%d, %lu\n", i, dataCPU->h_hashGlobal[i]);
                 validSubgraphs += dataCPU->h_hashGlobal[i];
             }
         }

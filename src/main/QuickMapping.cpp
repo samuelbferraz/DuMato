@@ -10,7 +10,7 @@ QuickMapping::QuickMapping(int k) {
         return;
     }
 
-    printf("[QuickMapping] Reading quick mappings...\n");
+    // printf("[QuickMapping] Reading quick mappings...\n");
     std::string filename = "../dictionaries/" + std::to_string(k) + ".csv";
 
     FILE* fp = fopen(filename.c_str(), "r");
@@ -39,7 +39,7 @@ QuickMapping::QuickMapping(int k) {
         cgLocalToGlobal[cgLocal] = cgGlobal;
     }
 
-    printf("[QuickMapping] Finished!\n");
+    // printf("[QuickMapping] Finished!\n");
 
     fclose(fp);
 }

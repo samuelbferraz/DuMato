@@ -19,7 +19,7 @@ void Timer::pause()
 
 void Timer::play(const char *message)
 {
-	printf("[Timer][BEGIN]: %s\n", message);
+	// printf("[Timer][BEGIN]: %s\n", message);
 	gettimeofday(&start, NULL);
 }
 
@@ -28,7 +28,7 @@ void Timer::pause(const char *message)
 	gettimeofday(&end, NULL);
 	elapsedTime += (end.tv_sec - start.tv_sec) * 1000.0;     // sec to ms
 	elapsedTime += (end.tv_usec - start.tv_usec) / 1000.0;   // us to ms
-	printf("[Timer][END]: %s\n", message);
+	// printf("[Timer][END]: %s\n", message);
 }
 
 double Timer::getElapsedTimeInMiliseconds()
