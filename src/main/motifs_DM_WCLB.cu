@@ -71,7 +71,7 @@ int main(int argc, const char** argv) {
     
     /*************************************************/
 
-    printf("Usage: ./%s graphFile k threads blockSize donationsPerWarp threshold report\n", argv[0]);
+    printf("Usage: %s graphFile k threads blockSize donationsPerWarp threshold report\n", argv[0]);
     printf("\t graphFile: \t %s\n", datasetName);
     printf("\t k: \t\t %d\n", k);
     printf("\t #threads: \t %d\n", numberOfActiveThreads);
