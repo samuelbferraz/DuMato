@@ -105,7 +105,7 @@ int main(int argc, const char** argv) {
             report->start();
         while(true) {
             if(DM_CPU->gpuIsIdle()) {
-                printf("[gpuIsIdle] %.2f.\n", DM_CPU->dataCPU->h_percentageWarpsIdle);
+                // printf("[gpuIsIdle] %.2f.\n", DM_CPU->dataCPU->h_percentageWarpsIdle);
                 DM_CPU->stopKernel();
                 if(DM_CPU->rebalance()) {
                     DM_CPU->runKernel();
@@ -124,9 +124,10 @@ int main(int argc, const char** argv) {
     DM_CPU->outputAggregateCounter();
     timerTOTAL.pause("timerTOTAL");
 
-    printf("Time (GPU): %f secs.\n", timerGPU.getElapsedTimeInSeconds());
-    printf("Time (IO): %f secs\n", timerIO.getElapsedTimeInSeconds());
-    printf("Time (TOTAL): %f secs\n", timerTOTAL.getElapsedTimeInSeconds());
+    printf("%.2f seconds.\n", timerGPU.getElapsedTimeInSeconds());
+    // printf("Time (GPU): %f secs.\n", timerGPU.getElapsedTimeInSeconds());
+    // printf("Time (IO): %f secs\n", timerIO.getElapsedTimeInSeconds());
+    // printf("Time (TOTAL): %f secs\n", timerTOTAL.getElapsedTimeInSeconds());
     // /*************************************************/
     /************** Memory release *******************/
     delete DM_CPU;

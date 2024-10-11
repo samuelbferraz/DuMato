@@ -471,7 +471,7 @@ bool DuMatoCPU::donate(std::vector<int>* idles, std::priority_queue<Donator*, st
     float idealWeight = ceil((float)totalWeight / (actives->size()+idles->size()));
     int jobsPerWarp = idealWeight < dataCPU->h_jobsPerWarp ? idealWeight : dataCPU->h_jobsPerWarp;
 
-    printf("jobsPerWarp: %d\n", jobsPerWarp);
+    // printf("jobsPerWarp: %d\n", jobsPerWarp);
     for(int job = 0 ; job < jobsPerWarp ; job++) {
         for(i = 0 ; i < idles->size() && !actives->empty() ; i++) {
             currentIdle = idles->at(i);
@@ -554,7 +554,7 @@ bool DuMatoCPU::rebalance() {
         bool full = donate(&idles, &actives, totalWeight);
         copyWarpDataBackToGpu();
         
-        printf("[REBALANCING] full: %s, totalWeight: %d, #jobs/#idle_warps: %.2f\n", full ? "yes" : "no", totalWeight, (float)totalWeight/idles.size());
+        // printf("[REBALANCING] full: %s, totalWeight: %d, #jobs/#idle_warps: %.2f\n", full ? "yes" : "no", totalWeight, (float)totalWeight/idles.size());
         return true;
     }
     else {
