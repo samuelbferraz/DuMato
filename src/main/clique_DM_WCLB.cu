@@ -35,19 +35,22 @@ __global__ void clique(DataGPU *dataGPU) {
 }
 
 int main(int argc, const char** argv) {
+    
     printf("Usage: %s graphFile k threads blockSize donationsPerWarp threshold\n", argv[0]);
     printf("\t graphFile: \t\t url of graph dataset\n");
-    printf("\t k: \t\t\t clique size\n");
+    printf("\t k: \t\t\t motifs size\n");
     printf("\t threads: \t\t amount of GPU threads (recommended: 102400)\n");
     printf("\t blockSize: \t\t amount of threads per block (recommended: 256)\n");
     printf("\t donationsPerWarp: \t amount of donations during load-balancing (recommended: 16)\n");
     printf("\t threshold: \t\t load-balancing threshold (recommended: 30)\n");
+    printf("\t report: \t\t 0 (no) or 1 (yes)\n");
 
-    if(argc != 7) {
+    if(argc != 8) {
         printf("\nWrong amount of parameters!\n");
         printf("Exiting...\n");
         exit(1);
     }
+    
 
     Timer timerTOTAL;
     timerTOTAL.play("timerTOTAL");
@@ -61,9 +64,19 @@ int main(int argc, const char** argv) {
     int numberOfSMs = 80;
     int jobsPerWarp = atoi(argv[5]);
     int globalThreshold = atoi(argv[6]);
+    int rep = atoi(argv[7]);
     bool relabeling = false;
-    int rep = 0;
+    
     /*************************************************/
+
+    printf("Usage: ./%s graphFile k threads blockSize donationsPerWarp threshold report\n", argv[0]);
+    printf("\t graphFile: \t %s\n", graphFile);
+    printf("\t k: \t\t %d\n", k);
+    printf("\t #threads: \t %d\n", numberOfActiveThreads);
+    printf("\t blockSize: \t %d\n", blockSize);
+    printf("\t donationsPerWarp: \t %d\n", jobsPerWarp);
+    printf("\t threshold: \t %d\n", globalThreshold);
+    printf("\t report: \t %d\n", rep);
 
     Timer timerIO;
 

@@ -70,6 +70,15 @@ int main(int argc, const char** argv) {
     
     /*************************************************/
 
+    printf("Usage: ./%s graphFile k threads blockSize donationsPerWarp threshold report\n", argv[0]);
+    printf("\t graphFile: \t %s\n", graphFile);
+    printf("\t k: \t\t %d\n", k);
+    printf("\t #threads: \t %d\n", numberOfActiveThreads);
+    printf("\t blockSize: \t %d\n", blockSize);
+    printf("\t donationsPerWarp: \t %d\n", jobsPerWarp);
+    printf("\t threshold: \t %d\n", globalThreshold);
+    printf("\t report: \t %s\n", rep ? "Yes" : "No");
+
     Timer timerIO;
     Timer timerLB;
 
