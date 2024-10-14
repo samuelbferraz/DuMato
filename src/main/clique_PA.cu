@@ -60,6 +60,7 @@ int main(int argc, const char** argv) {
     int globalThreshold = atoi(argv[6]);
     int rep = atoi(argv[7]);
     bool relabeling = false;
+    bool patternAware = true;
     
     /*************************************************/
 
