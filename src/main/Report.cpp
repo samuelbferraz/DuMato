@@ -68,7 +68,7 @@ void* Report::reportFunction(DuMatoCPU* DM_CPU, bool* activeReport, int reportIn
         }
         percentagePhysicalWarpsActive = ((float)amountPhysicalWarpsActive / (float)numberOfPhysicalWarps)*100;
         
-        std::cout << "REPORT," << instant << ",active warps," << amountPhysicalWarpsActive << ",";
+        std::cout << "REPORT," << instant << ",active warps," << amountPhysicalWarpsActive;
         // std::cout << "[REPORT][" << instant << "]active warps:" << percentagePhysicalWarpsActive <<"%,active warps:" << amountPhysicalWarpsActive << ",avg warps per sm:" << (float)amountPhysicalWarpsActive/80 << ",SMs:";
         // for(int i = 0 ; i < DM_CPU->dataCPU->h_numberOfSMs ; i++) {
         //    std::cout << warpsPerSM[i] << ",";
