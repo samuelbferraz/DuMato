@@ -76,7 +76,7 @@ int main(int argc, const char** argv) {
     printf("\t k: \t\t %d\n", k);
     printf("\t #threads: \t %d\n", numberOfActiveThreads);
     printf("\t blockSize: \t %d\n", blockSize);
-    printf("\t donationsPerWarp: \t %d\n", jobsPerWarp);
+    printf("\t donations: \t %d\n", jobsPerWarp);
     printf("\t threshold: \t %d\n", globalThreshold);
     printf("\t report: \t %s\n", rep ? "Yes" : "No");
 
@@ -93,7 +93,7 @@ int main(int argc, const char** argv) {
         report = new Report(DM_CPU, 100);
     
     Timer timerGPU;
-
+    int round = 0;
     if(globalThreshold >= 100) {
         timerGPU.play("Kernel");
         DM_CPU->runKernel();
@@ -111,10 +111,11 @@ int main(int argc, const char** argv) {
             report->start();
         while(true) {
             if(DM_CPU->gpuIsIdle()) {
-                printf("[gpuIsIdle] %.2f.\n", DM_CPU->dataCPU->h_percentageWarpsIdle);
                 timerLB.play();
                 DM_CPU->stopKernel();
                 if(DM_CPU->rebalance()) {
+                    round++;
+                    printf("Rebalancing,#%d,%.2f\n", round, DM_CPU->dataCPU->h_percentageWarpsIdle);
                     timerLB.pause();
                     DM_CPU->runKernel();
                 }

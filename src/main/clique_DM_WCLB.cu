@@ -42,7 +42,7 @@ int main(int argc, const char** argv) {
         printf("\t k: \t\t\t motifs size\n");
         printf("\t threads: \t\t amount of GPU threads (recommended: 102400)\n");
         printf("\t blockSize: \t\t amount of threads per block (recommended: 256)\n");
-        printf("\t donationsPerWarp: \t amount of donations during load-balancing (recommended: 16)\n");
+        printf("\t donations: \t\t amount of donations during load-balancing (recommended: 16)\n");
         printf("\t threshold: \t\t load-balancing threshold (recommended: 30)\n");
         printf("\t report: \t\t 0 (no) or 1 (yes)\n");
         printf("\nWrong amount of parameters!\n");
