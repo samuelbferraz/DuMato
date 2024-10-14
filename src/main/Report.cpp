@@ -70,9 +70,9 @@ void* Report::reportFunction(DuMatoCPU* DM_CPU, bool* activeReport, int reportIn
         
         std::cout << "REPORT," << instant << ",active warps," << amountPhysicalWarpsActive << ",";
         // std::cout << "[REPORT][" << instant << "]active warps:" << percentagePhysicalWarpsActive <<"%,active warps:" << amountPhysicalWarpsActive << ",avg warps per sm:" << (float)amountPhysicalWarpsActive/80 << ",SMs:";
-        for(int i = 0 ; i < DM_CPU->dataCPU->h_numberOfSMs ; i++) {
-            std::cout << warpsPerSM[i] << ",";
-        }
+        // for(int i = 0 ; i < DM_CPU->dataCPU->h_numberOfSMs ; i++) {
+        //    std::cout << warpsPerSM[i] << ",";
+        // }
         std::cout << "\n";
         // std::cout << "[REPORT][" << instant << "]active warps:" << percentagePhysicalWarpsActive << "%,avg warps per sm:" << amountPhysicalWarpsActive/80 << "\n";
 
